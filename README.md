@@ -77,8 +77,8 @@ Ejemplo:
 - [x] Paso 1 · Repositorio y estructura
 - [x] Paso 2 · Inventario de procesos
 - [x] Paso 3 · Log con PID/PPID/hilo y rol WORKER
+- [x] Paso 4 · El supervisor lanza un worker con `ProcessBuilder`
 - [ ] Roles PRODUCER y CONSUMER
-- [ ] Lanzar procesos con `ProcessBuilder`
 - [ ] Captura concurrente de stdout y stderr
 - [ ] Envío de datos por stdin
 - [ ] Resultado inmutable

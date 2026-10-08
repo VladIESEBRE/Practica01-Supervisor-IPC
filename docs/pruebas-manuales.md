@@ -66,3 +66,46 @@ Salida completa:
   dos flujos por separado.
 - Un rol desconocido no provoca una excepción: se informa por stderr y se
   devuelve el código 2.
+
+## Paso 4 · El supervisor lanza un worker con `ProcessBuilder`
+
+El supervisor construye la orden como **lista** y la ejecuta con
+`ProcessBuilder.start()`. Con `inheritIO()` el hijo escribe directamente en la
+misma terminal. Después espera con `waitFor()` y recoge el código de retorno.
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo ; echo $?
+    [SUPERVISOR pid=99981 ppid=17731 thread=main] inici
+    [SUPERVISOR pid=99981 ppid=17731 thread=main] llançant: [/usr/lib/jvm/java-21-openjdk-amd64/bin/java, -cp, target/supervisor.jar, practica01.ProcessForkJoinDemo, worker, BETA, 10, 0]
+    [SUPERVISOR pid=99981 ppid=17731 thread=main] fill creat amb pid=100020
+    [WORKER-BETA pid=100020 ppid=99981 thread=main] pas 1/10
+    ...
+    [WORKER-BETA pid=100020 ppid=99981 thread=main] pas 10/10
+    [SUPERVISOR pid=99981 ppid=17731 thread=main] fill pid=100020 ha acabat amb codi 0
+    0
+
+![Supervisor lanza worker](capturas/paso4-supervisor-lanza-worker.png)
+
+Árbol de procesos observado desde otra terminal mientras el worker trabajaba
+(`pstree -p 99981`, resumido; `{java}` son hilos):
+
+    java(99981)            SUPERVISOR
+     ├── java(100020)      WORKER-BETA   (+ 17 hilos {java} propios)
+     └── 19 hilos {java}   del supervisor
+
+![pstree supervisor y worker](capturas/paso4-pstree-supervisor-worker.png)
+
+### Conclusiones
+
+- El worker es un **proceso nuevo** (PID 100020) cuyo **PPID es el
+  supervisor** (99981), no la shell. El supervisor sigue teniendo como padre
+  la shell (17731):
+
+      zsh (17731) → supervisor (99981) → worker BETA (100020)
+
+- `pstree` muestra `java(100020)` **sin llaves**: es un proceso hijo, con sus
+  propios hilos. Las entradas `{java}` son hilos.
+- El código de retorno del worker (0) llega al supervisor con `waitFor()`, del
+  mismo modo que a la shell con `echo $?`.
+- Supervisor y worker escriben en la misma terminal porque, con
+  `inheritIO()`, el hijo **hereda los descriptores 0, 1 y 2** del padre. Que
+  compartan pantalla no los convierte en el mismo proceso.

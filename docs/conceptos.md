@@ -51,6 +51,27 @@ usuario escribe una orden) o un programa Java con `ProcessBuilder.start()`.
 Por eso `Worker.java` no contiene nada que lo haga "ser un proceso": es el
 mismo código, y lo que decide si es un proceso aparte es **cómo se ejecuta**.
 
+## Terminal y proceso no son lo mismo
+
+La terminal (`/dev/pts/N`) es solo el **destino** al que apuntan los
+descriptores 0, 1 y 2 de un proceso: un "fichero" especial que representa la
+pantalla y el teclado. Muchos procesos pueden escribir en la misma terminal a
+la vez (la `zsh` escribe el prompt, el supervisor sus mensajes, el worker los
+suyos) y cada uno sigue teniendo su propio PID.
+
+Con `ProcessBuilder.inheritIO()` el hijo **hereda** los descriptores del
+padre: su stdout y su stderr apuntan a la misma terminal. Es como dos personas
+escribiendo en la misma pizarra: comparten la pizarra, pero siguen siendo dos
+personas. Se puede comprobar con:
+
+    ls -l /proc/<PID>/fd
+
+que muestra a dónde apunta cada descriptor (`0`, `1`, `2` → `/dev/pts/1`).
+
+Sin `inheritIO()`, los descriptores del hijo se conectan a **tubos (pipes)**
+que lee el supervisor, y el texto del hijo ya no aparece en pantalla
+directamente. Es lo que se hará para capturar stdout y stderr.
+
 ## Por qué los workers usan `Thread.sleep`
 
 El worker simula un trabajo real (comprimir, convertir…) que tarda un rato.
