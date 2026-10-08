@@ -60,7 +60,7 @@ aparece en la línea de órdenes:
 ## Estado
 
 - [x] Paso 1 · Repositorio y estructura
-- [ ] Paso 2 · Inventario de procesos
+- [x] Paso 2 · Inventario de procesos
 - [ ] Roles y log con PID/PPID/hilo
 - [ ] Lanzar procesos con `ProcessBuilder`
 - [ ] Captura concurrente de stdout y stderr
