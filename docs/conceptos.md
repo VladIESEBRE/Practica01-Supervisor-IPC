@@ -37,6 +37,27 @@ ejecutar el método `main`. Todos los hilos de la JVM comparten el PID del
 proceso `java`; cada hilo tiene su propio identificador de hilo (TID, columna
 `SPID` de `ps -T`).
 
+## Llamar a un método no crea un proceso
+
+Un proceso no se "declara" en el código: nace cuando se pide al sistema
+operativo que **ejecute un programa**. Lo puede pedir la shell (cuando el
+usuario escribe una orden) o un programa Java con `ProcessBuilder.start()`.
+
+| Acción | ¿Proceso nuevo? | PID |
+|---|---|---|
+| El supervisor llama `Worker.run(...)` directamente | No: el código del worker se ejecuta dentro del proceso del supervisor | El mismo que el supervisor |
+| El supervisor ejecuta `new ProcessBuilder(... "worker" ...).start()` | Sí (**fork**) | Nuevo, con PPID = PID del supervisor |
+
+Por eso `Worker.java` no contiene nada que lo haga "ser un proceso": es el
+mismo código, y lo que decide si es un proceso aparte es **cómo se ejecuta**.
+
+## Por qué los workers usan `Thread.sleep`
+
+El worker simula un trabajo real (comprimir, convertir…) que tarda un rato.
+`Thread.sleep(1000)` detiene el hilo un segundo en cada paso. Sin esta pausa,
+el worker acabaría en milisegundos y no se podría observar con `ps`, superar
+un timeout ni comprobar que solo se ejecutan dos workers a la vez.
+
 ## Códigos de retorno y señales
 
 Cuando un proceso termina, devuelve a su padre un **código de retorno**

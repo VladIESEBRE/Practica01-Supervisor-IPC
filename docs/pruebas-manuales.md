@@ -29,16 +29,22 @@ Salida completa:
     [WORKER-BETA pid=60738 ppid=17731 thread=main] pas 3/3
     0
 
+![Worker BETA](capturas/paso3-worker-beta.png)
+
     $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo worker GAMMA 2 7 ; echo $?
     [WORKER-GAMMA pid=61135 ppid=17731 thread=main] pas 1/2
     [WORKER-GAMMA pid=61135 ppid=17731 thread=main] pas 2/2
     [WORKER-GAMMA pid=61135 ppid=17731 thread=main] acabo amb error, codi 7
     7
 
+![Worker GAMMA con código 7](capturas/paso3-worker-gamma-codi7.png)
+
     $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo worker GAMMA 2 7 2>/dev/null ; echo $?
     [WORKER-GAMMA pid=61480 ppid=17731 thread=main] pas 1/2
     [WORKER-GAMMA pid=61480 ppid=17731 thread=main] pas 2/2
     7
+
+![Worker GAMMA sin stderr](capturas/paso3-worker-gamma-sin-stderr.png)
 
     $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo patata ; echo $?
     [SUPERVISOR pid=61835 ppid=17731 thread=main] rol desconegut: patata
