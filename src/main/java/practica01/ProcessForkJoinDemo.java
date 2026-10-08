@@ -11,5 +11,12 @@ public class ProcessForkJoinDemo {
         String hilo = Thread.currentThread().getName();                   // hilo actual
 
         System.out.printf("[SUPERVISOR pid=%d ppid=%d thread=%s] hola%n", pid, ppid, hilo);
+        // Pausa temporal de 10 m para que dé tiempo a observar el proceso
+        // con ps y pstree desde otra terminal. La quitaremos en el paso 3.
+        try {
+            Thread.sleep(600_000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
