@@ -14,10 +14,7 @@ public class ProcessForkJoinDemo {
         String rol = args.length > 0 ? args[0] : "supervisor";
 
         int codigo = switch (rol) {
-            case "supervisor" -> {
-                Log.info("hola, soc el supervisor");
-                yield 0;
-            }
+            case "supervisor" -> Supervisor.run();
             case "worker" -> Worker.run(args[1],
                     Integer.parseInt(args[2]),
                     Integer.parseInt(args[3]));
