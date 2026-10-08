@@ -1,0 +1,3 @@
+ | Incidència                                     | Causa                                                                   | Com s'ha detectat       | Solució aplicada                             |
+▎ |------------------------------------------------|-------------------------------------------------------------------------|-------------------------|----------------------------------------------|
+▎ | Error "Source option 5 is no longer supported" | Maven 3.8 usa por defecto un compiler-plugin antiguo que ignora release | Al ejecutar mvn package | Fijar maven-compiler-plugin 3.13.0 en el pom |
