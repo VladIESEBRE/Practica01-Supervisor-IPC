@@ -63,6 +63,30 @@ más importantes para esta práctica (`kill -l` las lista todas):
 Experimento (paso 2): al parar el supervisor con Ctrl+C, `echo $?` devuelve
 **130 = 128 + 2 (SIGINT)**.
 
+## stdin, stdout y stderr
+
+Todo proceso nace con tres flujos abiertos, identificados por un número
+(*descriptor de fichero*):
+
+| Descriptor | Nombre | En Java | Uso |
+|---|---|---|---|
+| 0 | stdin (entrada estándar) | `System.in` | Datos que recibe el proceso |
+| 1 | stdout (salida estándar) | `System.out` | Resultados |
+| 2 | stderr (salida de errores) | `System.err` | Errores y diagnósticos |
+
+En la terminal los dos de salida se ven mezclados, pero son **independientes**.
+Con redirecciones de la shell se pueden separar: `2>/dev/null` descarta
+stderr, `>fichero` guarda stdout en un fichero, `<fichero` lee stdin de un
+fichero. Cuando un proceso lo crea otro programa (como el supervisor con
+`ProcessBuilder`), es el padre quien recibe estos flujos y tiene que leerlos
+o escribirlos.
+
+## Por qué `System.exit(codigo)`
+
+Si el método `main` termina normalmente, la JVM acaba siempre con código 0
+(o con 1 si se escapa una excepción). Para devolver un código concreto al
+padre, como el 7 de la actividad B, hay que llamar a `System.exit(codigo)`.
+
 ## Preguntas de la defensa
 
 1. **¿Qué diferencia hay entre PID, PPID e identificador de hilo?**

@@ -44,6 +44,19 @@ aparece en la línea de órdenes:
 
     java -cp target/supervisor.jar practica01.ProcessForkJoinDemo
 
+### Roles
+
+El mismo programa hace un rol u otro según el primer argumento:
+
+| Argumentos | Rol | Qué hace |
+|---|---|---|
+| *(ninguno)* | SUPERVISOR | Coordina los procesos hijos |
+| `worker <NOMBRE> <pasos> <código>` | WORKER | Hace `<pasos>` pasos de 1 s y termina con `<código>` |
+
+Ejemplo:
+
+    java -cp target/supervisor.jar practica01.ProcessForkJoinDemo worker BETA 3 0
+
 ## Tests
 
     mvn test
@@ -53,6 +66,7 @@ aparece en la línea de órdenes:
 | Documento | Contenido |
 |---|---|
 | [docs/conceptos.md](docs/conceptos.md) | Conceptos teóricos y respuestas a las preguntas de la defensa |
+| [docs/pruebas-manuales.md](docs/pruebas-manuales.md) | Pruebas manuales de cada rol y resultados |
 | [docs/inventario.md](docs/inventario.md) | Observación de procesos con `ps` y `pstree`, mapa de procesos |
 | [docs/Incidencias.md](docs/Incidencias.md) | Registro de incidencias |
 | [docs/uso-ia.md](docs/uso-ia.md) | Declaración de autoría y de uso de IA |
@@ -61,7 +75,8 @@ aparece en la línea de órdenes:
 
 - [x] Paso 1 · Repositorio y estructura
 - [x] Paso 2 · Inventario de procesos
-- [ ] Roles y log con PID/PPID/hilo
+- [x] Paso 3 · Log con PID/PPID/hilo y rol WORKER
+- [ ] Roles PRODUCER y CONSUMER
 - [ ] Lanzar procesos con `ProcessBuilder`
 - [ ] Captura concurrente de stdout y stderr
 - [ ] Envío de datos por stdin
