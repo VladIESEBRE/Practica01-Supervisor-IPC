@@ -65,6 +65,7 @@ Ejemplo:
 
 | Documento | Contenido |
 |---|---|
+| [docs/diseno.md](docs/diseno.md) | Diseño, flujo y decisiones |
 | [docs/conceptos.md](docs/conceptos.md) | Conceptos teóricos y respuestas a las preguntas de la defensa |
 | [docs/pruebas-manuales.md](docs/pruebas-manuales.md) | Pruebas manuales de cada rol y resultados |
 | [docs/inventario.md](docs/inventario.md) | Observación de procesos con `ps` y `pstree`, mapa de procesos |
