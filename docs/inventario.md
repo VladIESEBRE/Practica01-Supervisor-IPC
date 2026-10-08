@@ -109,10 +109,29 @@ su PID. El hilo `main` de Java no es un proceso.
 
 | Rol | PID | PPID | Estado observado | Código de retorno |
 |---|---|---|---|---|
-| Supervisor | 40833 | 17731 (zsh) | `Sl+` | *(pendiente)* |
+| Supervisor | 40833 | 17731 (zsh) | `Sl+` | 130 (interrumpido con Ctrl+C) |
 | Worker Alpha | | | | |
 | Worker Beta | | | | |
 | Worker Gamma | | | | |
+
+### Código de retorno
+
+Se ha lanzado de nuevo el supervisor en la terminal 1, se ha parado con
+Ctrl+C y, **en la misma terminal**, se ha consultado el código de retorno:
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo
+    [SUPERVISOR pid=... ppid=17731 thread=main] hola
+    ^C
+    $ echo $?
+    130
+
+130 = 128 + 2, donde 2 es el número de la señal `SIGINT` (`kill -l`), que es
+la que envía Ctrl+C. Ver [conceptos.md](conceptos.md#códigos-de-retorno-y-señales).
+
+> Error detectado: un primer `echo $?` ejecutado en la terminal 2 devolvió
+> `0`, pero era el código de retorno de la orden anterior de esa terminal
+> (`ps -T`), no del supervisor. `$?` solo se refiere a la última orden de la
+> misma shell.
 
 ## Portabilidad de las órdenes
 

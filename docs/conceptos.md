@@ -37,6 +37,32 @@ ejecutar el método `main`. Todos los hilos de la JVM comparten el PID del
 proceso `java`; cada hilo tiene su propio identificador de hilo (TID, columna
 `SPID` de `ps -T`).
 
+## Códigos de retorno y señales
+
+Cuando un proceso termina, devuelve a su padre un **código de retorno**
+(*exit code*), un número entre 0 y 255. En la shell se consulta con `echo $?`
+justo después de la orden y **en la misma terminal**.
+
+| Código | Significado |
+|---|---|
+| 0 | Éxito |
+| 1–125 | Error definido por el propio programa (por ejemplo, el worker que acaba con código 7 de la actividad B) |
+| 126 | El fichero existe, pero no es ejecutable |
+| 127 | Orden no encontrada |
+| 128 + N | El proceso ha terminado por la **señal N** |
+
+Una **señal** es un aviso que el sistema operativo envía a un proceso. Las
+más importantes para esta práctica (`kill -l` las lista todas):
+
+| Señal | Número | Quién la envía | ¿El proceso puede reaccionar? | Código de retorno |
+|---|---|---|---|---|
+| `SIGINT` | 2 | Ctrl+C en la terminal | Sí (puede hacer limpieza) | 130 |
+| `SIGTERM` | 15 | `kill PID`, systemd, `Process.destroy()` en Java | Sí → **finalización ordenada** | 143 |
+| `SIGKILL` | 9 | `kill -9 PID`, `Process.destroyForcibly()` en Java | No, el kernel lo mata de inmediato → **finalización forzada** | 137 |
+
+Experimento (paso 2): al parar el supervisor con Ctrl+C, `echo $?` devuelve
+**130 = 128 + 2 (SIGINT)**.
+
 ## Preguntas de la defensa
 
 1. **¿Qué diferencia hay entre PID, PPID e identificador de hilo?**
