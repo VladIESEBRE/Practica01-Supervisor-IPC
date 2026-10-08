@@ -1,22 +1,32 @@
-// ProcessForkJoinDemo: punto de entrada del programa. De momento solo imprime
-// quién es (rol, PID, PPID e hilo) para comprobar que el proyecto compila
-// y que sabemos obtener la identidad del proceso con la API ProcessHandle.
+// ProcessForkJoinDemo: punto de entrada. Según el primer argumento decide qué
+// rol hace este proceso. Sin argumentos actúa como SUPERVISOR (así
+// "java -jar supervisor.jar" sigue funcionando). Termina con System.exit(codigo)
+// para que el padre (la shell o el supervisor) reciba el código de retorno.
 package practica01;
 
 public class ProcessForkJoinDemo {
-    public static void main(String[] args) {
-        ProcessHandle yo = ProcessHandle.current();                       // este proceso
-        long pid = yo.pid();                                              // mi identificador
-        long ppid = yo.parent().map(ProcessHandle::pid).orElse(-1L);      // el de mi padre
-        String hilo = Thread.currentThread().getName();                   // hilo actual
+    // Lee el rol del primer argumento, ejecuta la parte del programa que toca
+    // y termina el proceso con el código de retorno obtenido.
+    //   sin argumentos               -> supervisor
+    //   worker <NOMBRE> <pasos> <cod> -> worker
+    //   cualquier otra cosa          -> error, código 2
+    public static void main(String[] args) throws Exception {
+        String rol = args.length > 0 ? args[0] : "supervisor";
 
-        System.out.printf("[SUPERVISOR pid=%d ppid=%d thread=%s] hola%n", pid, ppid, hilo);
-        // Pausa temporal de 10 m para que dé tiempo a observar el proceso
-        // con ps y pstree desde otra terminal. La quitaremos en el paso 3.
-        try {
-            Thread.sleep(600_000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        int codigo = switch (rol) {
+            case "supervisor" -> {
+                Log.info("hola, soc el supervisor");
+                yield 0;
+            }
+            case "worker" -> Worker.run(args[1],
+                    Integer.parseInt(args[2]),
+                    Integer.parseInt(args[3]));
+            default -> {
+                Log.error("rol desconegut: " + rol);
+                yield 2;
+            }
+        };
+
+        System.exit(codigo);
     }
 }
