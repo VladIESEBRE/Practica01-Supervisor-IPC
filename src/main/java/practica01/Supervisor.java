@@ -11,20 +11,32 @@ public final class Supervisor {
     // Constructor privado: solo se usa el método estático run().
     private Supervisor() {}
 
-    // Lanza el worker BETA como proceso hijo, espera a que termine,
-    // muestra su código de retorno y devuelve 0.
+       // Lanza el worker GAMMA como proceso hijo, lee su stdout y su stderr a la
+    // vez con dos hilos, espera a que termine y muestra el resumen.
     public static int run() throws Exception {
         Log.info("inici");
-        List<String> orden = ordenPara("worker", "BETA", "10", "0");
+        List<String> orden = ordenPara("worker", "GAMMA", "3", "7");
         Log.info("llançant: " + orden);
 
-        ProcessBuilder pb = new ProcessBuilder(orden);
-        pb.inheritIO();                  // el hijo escribe en la misma terminal que el supervisor
-        Process hijo = pb.start();       // FORK: aquí el sistema operativo crea el proceso hijo
+        ProcessBuilder pb = new ProcessBuilder(orden);   // ya SIN inheritIO()
+        Process hijo = pb.start();                       // FORK
         Log.info("fill creat amb pid=" + hijo.pid());
 
-        int codigo = hijo.waitFor();     // JOIN: el supervisor se queda esperando a que acabe
-        Log.info("fill pid=" + hijo.pid() + " ha acabat amb codi " + codigo);
+        // Un hilo para cada tubo: se leen los dos a la vez mientras el hijo trabaja.
+        // Ojo con los nombres: getInputStream() es el STDOUT del hijo
+        // (para nosotros es "entrada", porque lo leemos).
+        LectorFlujo lectorOut = new LectorFlujo(hijo.getInputStream(), "stdout", hijo.pid());
+        LectorFlujo lectorErr = new LectorFlujo(hijo.getErrorStream(), "stderr", hijo.pid());
+        lectorOut.start();
+        lectorErr.start();
+
+        int codigo = hijo.waitFor();   // JOIN con el proceso hijo
+        lectorOut.join();              // esperamos a que los hilos acaben de leer lo que quede
+        lectorErr.join();
+
+        Log.info("fill pid=" + hijo.pid() + " ha acabat amb codi " + codigo
+                + " (stdout=" + lectorOut.getLineas().size() + " línies, stderr="
+                + lectorErr.getLineas().size() + " línies)");
         return 0;
     }
 
