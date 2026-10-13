@@ -72,6 +72,36 @@ Sin `inheritIO()`, los descriptores del hijo se conectan a **tubos (pipes)**
 que lee el supervisor, y el texto del hijo ya no aparece en pantalla
 directamente. Es lo que se hará para capturar stdout y stderr.
 
+## Por qué hay que leer stdout y stderr a la vez (actividad C)
+
+Cada tubo tiene un búfer limitado (en Linux, unos 64 KB). Si el hijo escribe
+y nadie lee, el búfer se llena y el hijo **se bloquea** en la escritura hasta
+que alguien lo vacíe.
+
+Si el supervisor leyera los tubos uno detrás de otro (o hiciera `waitFor()`
+antes de leer):
+
+1. El supervisor espera a que se acabe stdout (o a que el hijo termine).
+2. El hijo escribe mucho por stderr, nadie lo lee, el búfer se llena y el hijo
+   se queda parado.
+3. El hijo no termina nunca, así que stdout no se acaba nunca.
+4. **Interbloqueo**: cada uno espera al otro para siempre.
+
+**Medida preventiva**: un hilo lector para cada tubo (`LectorFlujo`, hilos
+`io-stdout` e `io-stderr`) que empieza a leer justo después de `start()`, de
+modo que ningún búfer se llena. Después de `waitFor()` se hace `join()` de los
+dos hilos para no perder las últimas líneas.
+
+### Nombres de los flujos de `Process`
+
+Java los nombra desde el punto de vista del supervisor:
+
+| Método | Tubo del hijo | El supervisor… |
+|---|---|---|
+| `getInputStream()` | stdout | lo lee |
+| `getErrorStream()` | stderr | lo lee |
+| `getOutputStream()` | stdin | lo escribe |
+
 ## Por qué los workers usan `Thread.sleep`
 
 El worker simula un trabajo real (comprimir, convertir…) que tarda un rato.
@@ -136,9 +166,15 @@ padre, como el 7 de la actividad B, hay que llamar a `System.exit(codigo)`.
    identificador de hilo identifica cada hilo dentro de un proceso. Varios
    hilos comparten el mismo PID, pero cada uno tiene su propio TID.
 2. **¿Por qué `ProcessBuilder` tiene que recibir una lista de argumentos?**
-   *Pendiente (paso de `ProcessBuilder`).*
+   Porque así cada argumento llega tal cual al programa, sin ninguna shell en
+   medio que interprete caracteres especiales (`;`, `|`, `>`, espacios…). Si
+   un argumento viene del exterior, no se puede convertir en una orden nueva
+   (inyección de órdenes).
 3. **¿Por qué hay que drenar stdout y stderr concurrentemente?**
-   *Pendiente (paso de captura de salidas).*
+   Porque cada tubo tiene un búfer limitado: si uno no se lee, se llena, el
+   hijo se bloquea escribiendo y no termina nunca, y el supervisor, que
+   espera el otro tubo o el final del hijo, también se queda bloqueado
+   (interbloqueo). Con un hilo lector por tubo los dos se vacían a la vez.
 4. **¿Qué aporta cerrar stdin después de escribir?**
    *Pendiente (paso de stdin).*
 5. **¿Qué diferencia hay entre finalización ordenada y forzada?**

@@ -78,8 +78,8 @@ Ejemplo:
 - [x] Paso 2 · Inventario de procesos
 - [x] Paso 3 · Log con PID/PPID/hilo y rol WORKER
 - [x] Paso 4 · El supervisor lanza un worker con `ProcessBuilder`
+- [x] Paso 5 · Captura concurrente de stdout y stderr
 - [ ] Roles PRODUCER y CONSUMER
-- [ ] Captura concurrente de stdout y stderr
 - [ ] Envío de datos por stdin
 - [ ] Resultado inmutable
 - [ ] Timeout, cancelación y shutdown hook

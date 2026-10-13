@@ -109,3 +109,43 @@ misma terminal. Después espera con `waitFor()` y recoge el código de retorno.
 - Supervisor y worker escriben en la misma terminal porque, con
   `inheritIO()`, el hijo **hereda los descriptores 0, 1 y 2** del padre. Que
   compartan pantalla no los convierte en el mismo proceso.
+
+## Paso 5 · Captura concurrente de stdout y stderr
+
+Sin `inheritIO()`, los tubos del hijo se conectan al supervisor. Dos hilos del
+supervisor (`io-stdout` e `io-stderr`, clase `LectorFlujo`) los leen **a la
+vez** mientras el hijo trabaja. Cada línea se guarda con marca temporal y
+origen, y se reemite por el stdout o el stderr del supervisor.
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo ; echo $?
+    [SUPERVISOR pid=18816 ppid=5863 thread=main] inici
+    [SUPERVISOR pid=18816 ppid=5863 thread=main] llançant: [/usr/lib/jvm/java-21-openjdk-amd64/bin/java, -cp, target/supervisor.jar, practica01.ProcessForkJoinDemo, worker, GAMMA, 3, 7]
+    [SUPERVISOR pid=18816 ppid=5863 thread=main] fill creat amb pid=18837
+    [SUPERVISOR pid=18816 ppid=5863 thread=io-stdout] 17:32:02.357 [stdout pid=18837] [WORKER-GAMMA pid=18837 ppid=18816 thread=main] pas 1/3
+    [SUPERVISOR pid=18816 ppid=5863 thread=io-stdout] 17:32:03.349 [stdout pid=18837] [WORKER-GAMMA pid=18837 ppid=18816 thread=main] pas 2/3
+    [SUPERVISOR pid=18816 ppid=5863 thread=io-stdout] 17:32:04.350 [stdout pid=18837] [WORKER-GAMMA pid=18837 ppid=18816 thread=main] pas 3/3
+    [SUPERVISOR pid=18816 ppid=5863 thread=io-stderr] 17:32:05.358 [stderr pid=18837] [WORKER-GAMMA pid=18837 ppid=18816 thread=main] acabo amb error, codi 7
+    [SUPERVISOR pid=18816 ppid=5863 thread=main] fill pid=18837 ha acabat amb codi 7 (stdout=3 línies, stderr=1 línies)
+    0
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo 2>/dev/null
+    ... (las mismas líneas excepto la de thread=io-stderr) ...
+    [SUPERVISOR pid=18891 ppid=5863 thread=main] fill pid=18911 ha acabat amb codi 7 (stdout=3 línies, stderr=1 línies)
+
+![Captura de stdout y stderr](capturas/paso5-captura-stdout-stderr.png)
+
+### Conclusiones
+
+- Cada línea reemitida identifica **dos procesos**: quién la ha leído
+  (`SUPERVISOR pid=18816`, hilo `io-stdout` o `io-stderr`) y quién la ha
+  escrito (`WORKER-GAMMA pid=18837 ppid=18816`), con la hora y el tubo de
+  origen.
+- `main`, `io-stdout` e `io-stderr` son **hilos** del mismo proceso supervisor
+  (mismo `pid=18816`). El worker es otro **proceso** (pid 18837, PPID 18816).
+  Es la base de la actividad A.
+- Con `2>/dev/null` desaparece la línea reemitida por `io-stderr`: el
+  supervisor reemite las líneas de stderr del hijo por su propio stderr. El
+  contador sigue diciendo `stderr=1 línies` porque la línea sí se ha
+  capturado.
+- El código 7 del worker llega al supervisor. El supervisor de momento
+  termina con 0; más adelante su código reflejará los errores de los hijos.
