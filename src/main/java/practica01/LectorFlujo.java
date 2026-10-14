@@ -1,4 +1,3 @@
-
 // LectorFlujo: hilo que lee un tubo de salida de un proceso hijo (stdout o
 // stderr) línea a línea, hasta que el hijo lo cierra. Cada línea se guarda con
 // la hora y el origen, y se reemite por la salida del supervisor.

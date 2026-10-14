@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public final class Supervisor {
@@ -17,6 +19,10 @@ public final class Supervisor {
     // Tiempo que se da a un hijo para terminar de forma ordenada (después de
     // destroy) antes de matarlo de forma forzada (destroyForcibly).
     private static final Duration GRACIA = Duration.ofSeconds(2);
+
+    // Hijos que están en marcha ahora mismo. Lo usan varios hilos a la vez (main,
+    // el pool y el shutdown hook), por eso es un conjunto concurrente (thread-safe).
+    private static final Set<Process> ACTIVOS = ConcurrentHashMap.newKeySet();
 
     // Constructor privado: solo se usa el método estático run().
     private Supervisor() {
@@ -27,6 +33,10 @@ public final class Supervisor {
     // Termina con 0 si todos han ido bien o 1 si alguno ha fallado.
     public static int run() throws Exception {
         Log.info("inici");
+        // Si el supervisor recibe Ctrl+C o kill (SIGINT/SIGTERM), la JVM ejecuta
+        // este hilo antes de morir: para los hijos activos y así no quedan huérfanos.
+        Runtime.getRuntime().addShutdownHook(
+                new Thread(Supervisor::cancelarActivos, "shutdown-hook"));
         Duration limite = Duration.ofSeconds(5);
         List<Resultado> resultados = new ArrayList<>();
         resultados.add(ejecutar(ordenPara("worker", "ALPHA", "2", "0"), List.of(), limite));
@@ -56,6 +66,7 @@ public final class Supervisor {
         Instant inicio = Instant.now();
         Process hijo = new ProcessBuilder(orden).start(); // FORK
         Log.info("fill creat amb pid=" + hijo.pid());
+        ACTIVOS.add(hijo);
 
         // Primero los lectores, para que ningún tubo de salida se llene.
         LectorFlujo lectorOut = new LectorFlujo(hijo.getInputStream(), "stdout", hijo.pid());
@@ -85,6 +96,7 @@ public final class Supervisor {
             aturar(hijo);
         }
         int codigo = hijo.exitValue(); // el hijo ya ha terminado: leemos su código
+        ACTIVOS.remove(hijo);
         lectorOut.join(); // esperamos a que los lectores acaben
         lectorErr.join();
 
@@ -93,7 +105,7 @@ public final class Supervisor {
                 hijo.pid(),
                 ProcessHandle.current().pid(), // el padre del hijo es este proceso
                 codigo,
-                timeout, // de momento no hay timeout (paso 8)
+                timeout, // true si se ha parado por tiempo
                 Duration.between(inicio, Instant.now()),
                 lectorOut.getLineas(),
                 lectorErr.getLineas());
@@ -121,6 +133,23 @@ public final class Supervisor {
         hijo.destroyForcibly(); // SIGKILL al hijo
         hijo.waitFor();
         Log.error("fill " + hijo.pid() + " aturat de forma forçada");
+    }
+
+    // Lo ejecuta el shutdown hook: registra la causa del cierre y para todos los
+    // hijos que todavía estén en marcha (ordenada y, si hace falta, forzadamente).
+    static void cancelarActivos() {
+        if (ACTIVOS.isEmpty()) {
+            return;   // final normal: no queda ningún hijo vivo
+        }
+        Log.error("CANCEL·LACIÓ: el supervisor es tanca per un senyal (Ctrl+C o kill); "
+                + "aturant " + ACTIVOS.size() + " fills actius");
+        for (Process hijo : ACTIVOS) {
+            try {
+                aturar(hijo);
+            } catch (InterruptedException e) {
+                hijo.destroyForcibly();
+            }
+        }
     }
 
     // Construye la orden para ejecutar ESTE MISMO programa con otro rol:
