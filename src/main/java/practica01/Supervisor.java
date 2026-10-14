@@ -13,6 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 public final class Supervisor {
@@ -30,8 +33,9 @@ public final class Supervisor {
     }
 
     // Demo del supervisor: ejecuta tres workers (uno bien, uno que se pasa de
-    // tiempo y uno que falla) y la pipe producer -> consumer, con un límite de
-    // 5 s cada uno. Termina con 0 si todos han ido bien o 1 si alguno ha fallado.
+    // tiempo y uno que falla) con un máximo de dos a la vez, y después la pipe
+    // producer -> consumer, con un límite de 5 s cada proceso.
+    // Termina con 0 si todos han ido bien o 1 si alguno ha fallado.
     public static int run() throws Exception {
         Log.info("inici");
         // Si el supervisor recibe Ctrl+C o kill (SIGINT/SIGTERM), la JVM ejecuta
@@ -39,10 +43,7 @@ public final class Supervisor {
         Runtime.getRuntime().addShutdownHook(
                 new Thread(Supervisor::cancelarActivos, "shutdown-hook"));
         Duration limite = Duration.ofSeconds(5);
-        List<Resultado> resultados = new ArrayList<>();
-        resultados.add(ejecutar(ordenPara("worker", "ALPHA", "2", "0"), List.of(), limite));
-        resultados.add(ejecutar(ordenPara("worker", "BETA", "10", "0"), List.of(), limite));
-        resultados.add(ejecutar(ordenPara("worker", "GAMMA", "3", "7"), List.of(), limite));
+        List<Resultado> resultados = new ArrayList<>(ejecutarWorkers(limite));
         resultados.addAll(ejecutarPipe(limite));
 
         int fallidos = 0;
@@ -54,6 +55,32 @@ public final class Supervisor {
         }
         Log.info("fi: " + resultados.size() + " processos, " + fallidos + " fallits");
         return fallidos == 0 ? 0 : 1;
+    }
+
+    // Fork-Join con procesos. Un pool de 2 hilos: cada hilo lanza un worker
+    // (FORK) y espera a que acabe, así que como máximo hay 2 workers vivos a la
+    // vez; el tercero espera en la cola hasta que queda un hilo libre.
+    // Después se recogen los tres resultados en orden (JOIN).
+    static List<Resultado> ejecutarWorkers(Duration limite) throws Exception {
+        List<List<String>> ordenes = List.of(
+                ordenPara("worker", "ALPHA", "2", "0"),    // acaba bien
+                ordenPara("worker", "BETA", "10", "0"),    // supera el límite: timeout
+                ordenPara("worker", "GAMMA", "3", "7"));   // acaba con error 7
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);   // hilos pool-1-thread-1 y -2
+        try {
+            List<Future<Resultado>> pendientes = new ArrayList<>();
+            for (List<String> orden : ordenes) {
+                pendientes.add(pool.submit(() -> ejecutar(orden, List.of(), limite)));
+            }
+            List<Resultado> resultados = new ArrayList<>();
+            for (Future<Resultado> pendiente : pendientes) {
+                resultados.add(pendiente.get());   // espera el resultado de cada worker
+            }
+            return resultados;
+        } finally {
+            pool.shutdown();
+        }
     }
 
     // Lanza un proceso hijo con la orden indicada, le escribe las líneas de
