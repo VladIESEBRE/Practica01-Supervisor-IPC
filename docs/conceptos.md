@@ -185,6 +185,24 @@ Los descendientes se obtienen con `descendants()` **antes** de parar al hijo:
 si el hijo muriera primero, sus hijos quedarían huérfanos (adoptados por otro
 proceso) y ya no aparecerían como descendientes.
 
+## Procesos huérfanos y shutdown hook
+
+Si un proceso padre muere y sus hijos siguen vivos, los hijos quedan
+**huérfanos**: el sistema los hace adoptar por otro proceso (`systemd` o
+`init`) y nadie los vigila ni recoge su resultado.
+
+Para evitarlo, el supervisor mantiene el conjunto `ACTIVOS` con los hijos en
+marcha y registra un **shutdown hook** (`Runtime.addShutdownHook`): un hilo que
+la JVM ejecuta antes de terminar cuando recibe SIGINT o SIGTERM (o cuando se
+llama a `System.exit`). El hook para todos los hijos activos con `aturar()`.
+
+Limitación: SIGKILL (`kill -9`) no se puede capturar; con esta señal el hook
+no se ejecuta. En ese caso, la protección la da quien gestiona el supervisor
+(por ejemplo, systemd con `KillMode=control-group` en la ampliación opcional).
+
+`ACTIVOS` es un `ConcurrentHashMap.newKeySet()` porque lo usan varios hilos a
+la vez (main, pool y hook).
+
 ## Resultado inmutable (`record`)
 
 Cada ejecución se resume en un objeto `Resultado`, que es un `record` de

@@ -377,3 +377,43 @@ línea es el propio `grep`):
 - Un timeout cuenta como fallo (`exito()` es `false`): el supervisor sigue con
   GAMMA y el consumer, informa de dos `FALLADA` y termina con código 1.
 - `ps` confirma que no queda ningún proceso `worker BETA` vivo.
+
+## Paso 8b · Cancelación segura con shutdown hook
+
+El supervisor registra un *shutdown hook* (hilo `shutdown-hook`) que la JVM
+ejecuta cuando el supervisor recibe SIGINT (Ctrl+C) o SIGTERM (`kill`,
+systemd). El hook registra la causa y para con `aturar()` todos los hijos del
+conjunto `ACTIVOS`, de forma ordenada y, si hace falta, forzada.
+
+Prueba: la terminal 2 espera a que arranque BETA, envía SIGTERM **solo al
+supervisor** y comprueba que no queda ningún worker vivo:
+
+    # Terminal 2 (preparada antes de lanzar el supervisor)
+    $ while ! pgrep -f "worker BETA" > /dev/null; do sleep 0.2; done; sleep 2; pkill -f 'ProcessForkJoinDemo$'; sleep 3; ps -eo pid,ppid,stat,cmd | grep "worker BETA"
+      43421    8498 S+   grep --color=auto ... worker BETA
+
+    # Terminal 1
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo ; echo $?
+    ...
+    [SUPERVISOR pid=43175 ppid=8496 thread=io-stdout] 17:30:03.950 [stdout pid=43263] [WORKER-BETA pid=43263 ppid=43175 thread=main] pas 3/10
+    [SUPERVISOR pid=43175 ppid=8496 thread=shutdown-hook] CANCEL·LACIÓ: el supervisor es tanca per un senyal (Ctrl+C o kill); aturant 1 fills actius
+    [SUPERVISOR pid=43175 ppid=8496 thread=main] resultat: pid=43263 ppid=43175 codi=143 timeout=no durada=2212ms stdout=3 línies stderr=0 línies ordre=[..., worker, BETA, 10, 0]
+    [SUPERVISOR pid=43175 ppid=8496 thread=shutdown-hook] fill 43263 aturat de forma ordenada
+    143
+
+![Cancelación: supervisor](capturas/paso8b-cancelacion-supervisor.png)
+![Cancelación: ps sin huérfanos](capturas/paso8b-cancelacion-ps.png)
+
+### Conclusiones
+
+- `pkill -f 'ProcessForkJoinDemo$'` solo afecta al supervisor (su línea de
+  órdenes acaba en el nombre de la clase; la de los workers no).
+- El mensaje de cancelación lo escribe el hilo `shutdown-hook`: la JVM lo
+  arranca al recibir la señal. Registra la **causa** del cierre.
+- BETA (pid 43263) recibe SIGTERM del hook y termina de forma ordenada
+  (código 143). El hilo `main`, que estaba en `waitFor`, ve terminar al hijo
+  y escribe su resultado; por eso esa línea sale entre las dos del hook.
+- El supervisor termina con **143** (también lo ha matado un SIGTERM) y no
+  llega a escribir el resumen final: la JVM se cierra en cuanto acaba el hook.
+- `ps` no encuentra ningún `worker BETA`: **no quedan procesos huérfanos**.
+  Sin el hook, BETA habría continuado ejecutándose, adoptado por otro proceso.
