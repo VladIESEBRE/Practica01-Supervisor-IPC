@@ -1,6 +1,7 @@
 // Supervisor: rol SUPERVISOR. Lanza otros procesos (hijos) a partir del mismo
 // programa, les envía datos por stdin, lee su stdout y su stderr a la vez,
-// espera a que acaben y guarda el resultado de cada uno en un Resultado.
+// espera a que acaben (con timeout), conecta producer y consumer con una pipe
+// propia y guarda el resultado de cada hijo en un Resultado.
 package practica01;
 
 import java.io.BufferedWriter;
@@ -29,8 +30,8 @@ public final class Supervisor {
     }
 
     // Demo del supervisor: ejecuta tres workers (uno bien, uno que se pasa de
-    // tiempo y uno que falla) y el consumer, con un límite de 5 s cada uno.
-    // Termina con 0 si todos han ido bien o 1 si alguno ha fallado.
+    // tiempo y uno que falla) y la pipe producer -> consumer, con un límite de
+    // 5 s cada uno. Termina con 0 si todos han ido bien o 1 si alguno ha fallado.
     public static int run() throws Exception {
         Log.info("inici");
         // Si el supervisor recibe Ctrl+C o kill (SIGINT/SIGTERM), la JVM ejecuta
@@ -42,8 +43,7 @@ public final class Supervisor {
         resultados.add(ejecutar(ordenPara("worker", "ALPHA", "2", "0"), List.of(), limite));
         resultados.add(ejecutar(ordenPara("worker", "BETA", "10", "0"), List.of(), limite));
         resultados.add(ejecutar(ordenPara("worker", "GAMMA", "3", "7"), List.of(), limite));
-        resultados.add(ejecutar(ordenPara("consumer"),
-                List.of("Ana", "Joan", "Pep", "Marc", "Laia"), limite));
+        resultados.addAll(ejecutarPipe(limite));
 
         int fallidos = 0;
         for (Resultado r : resultados) {
@@ -87,6 +87,13 @@ public final class Supervisor {
         Log.info("stdin del fill " + hijo.pid() + " tancat (EOF enviat, "
                 + entrada.size() + " línies)");
 
+        return esperar(hijo, orden, inicio, limite, lectorOut, lectorErr);
+    }
+
+    // Espera a que el hijo termine como mucho "limite" (si se pasa, lo para:
+    // timeout), espera a que sus dos lectores acaben y construye su Resultado.
+    static Resultado esperar(Process hijo, List<String> orden, Instant inicio, Duration limite,
+                             LectorFlujo lectorOut, LectorFlujo lectorErr) throws InterruptedException {
         // JOIN con límite: waitFor(tiempo) devuelve false si el hijo no ha
         // terminado dentro del límite.
         boolean timeout = false;
@@ -112,6 +119,42 @@ public final class Supervisor {
 
         Log.info("resultat: " + resultado.resumen());
         return resultado;
+    }
+
+    // Pipe implementada por el supervisor (no por la shell):
+    //   PRODUCER --stdout--> SUPERVISOR (hilo "pipe") --stdin--> CONSUMER
+    // Lanza los dos procesos. El hilo "pipe" lee cada línea del stdout del
+    // producer y la escribe en el stdin del consumer; cuando el producer
+    // termina (EOF), cierra el stdin del consumer para que responda.
+    // Devuelve los resultados del producer y del consumer.
+    static List<Resultado> ejecutarPipe(Duration limite) throws Exception {
+        List<String> ordenProd = ordenPara("producer");
+        List<String> ordenCons = ordenPara("consumer");
+        Instant inicio = Instant.now();
+        Process productor = new ProcessBuilder(ordenProd).start();   // FORK
+        Process consumidor = new ProcessBuilder(ordenCons).start();  // FORK
+        ACTIVOS.add(productor);
+        ACTIVOS.add(consumidor);
+        Log.info("pipe: producer pid=" + productor.pid() + " --stdout--> SUPERVISOR --stdin--> consumer pid="
+                + consumidor.pid());
+
+        // El hilo "pipe" conecta stdout(producer) con stdin(consumer).
+        LectorFlujo pipe = new LectorFlujo(productor.getInputStream(), "stdout", productor.pid(),
+                consumidor.getOutputStream());
+        // Lo que no pasa por la pipe también se lee: stderr de los dos y la respuesta del consumer.
+        LectorFlujo errProd = new LectorFlujo(productor.getErrorStream(), "stderr", productor.pid());
+        LectorFlujo outCons = new LectorFlujo(consumidor.getInputStream(), "stdout", consumidor.pid());
+        LectorFlujo errCons = new LectorFlujo(consumidor.getErrorStream(), "stderr", consumidor.pid());
+        pipe.start();
+        errProd.start();
+        outCons.start();
+        errCons.start();
+
+        Resultado resProd = esperar(productor, ordenProd, inicio, limite, pipe, errProd);
+        Resultado resCons = esperar(consumidor, ordenCons, inicio, limite, outCons, errCons);
+        Log.info("pipe: " + resProd.stdout().size() + " línies transmeses, resposta del consumer: "
+                + resCons.stdout());
+        return List.of(resProd, resCons);
     }
 
     // Para un proceso hijo y sus descendientes: primero de forma ordenada
