@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -48,8 +49,19 @@ public final class Supervisor {
         Runtime.getRuntime().addShutdownHook(
                 new Thread(Supervisor::alCerrar, "shutdown-hook"));
         Duration limite = Duration.ofSeconds(5);
-        List<Resultado> resultados = new ArrayList<>(ejecutarWorkers(limite));
-        resultados.addAll(ejecutarPipe(limite));
+        List<Resultado> resultados;
+        try {
+            resultados = new ArrayList<>(ejecutarWorkers(limite));
+            resultados.addAll(ejecutarPipe(limite));
+        } catch (IllegalStateException | ExecutionException e) {
+            if (!cerrando) {
+                throw e;   // un error de verdad, no un cierre
+            }
+            // El shutdown hook está cerrando el supervisor: lanzar() ha rechazado
+            // crear hijos nuevos. Se termina sin lanzar nada más.
+            Log.error("execució cancel·lada: el supervisor s'està tancant");
+            return 143;   // 128 + 15 (SIGTERM)
+        }
 
         int fallidos = 0;
         for (Resultado r : resultados) {
