@@ -83,6 +83,12 @@ Unidad de usuario `Type=oneshot` en `systemd/practica01.service`. Instalación,
 
 ## Documentación
 
+Informe completo (resumen, decisiones, evidencias con capturas, mapa de
+procesos, actividades A–F, criterios, preguntas de la defensa, incidencias y
+uso de IA): **[Informe_Practica01.docx](Informe_Practica01.docx)**.
+
+Detalle de cada paso:
+
 | Documento | Contenido |
 |---|---|
 | [docs/diseno.md](docs/diseno.md) | Diseño, flujo y decisiones |
@@ -110,4 +116,4 @@ Unidad de usuario `Type=oneshot` en `systemd/practica01.service`. Instalación,
 - [x] Paso 10 · Tres workers con un máximo de dos simultáneos
 - [x] Paso 11 · Tests automáticos (9 tests JUnit)
 - [x] Ampliación · Servicio systemd (`Type=oneshot`)
-- [ ] Informe final y actividades A–F
+- [x] Informe final y actividades A–F
