@@ -541,5 +541,7 @@ máximo de 30 s (`@Timeout`), para que ninguno pueda quedarse colgado.
 
 Resultado (3 ejecuciones seguidas, todas iguales):
 
-    Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.3 s -- in practica01.SupervisorTest
+    Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.287 s -- in practica01.SupervisorTest
     BUILD SUCCESS
+
+![mvn test](capturas/paso11-tests.png)

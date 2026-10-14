@@ -59,20 +59,36 @@ y entonces sí con `User=alumnat`.
 
 ## Resultado de la ejecución normal
 
+    $ systemctl --user daemon-reload
+    $ systemctl --user start practica01.service
+    Job for practica01.service failed because the control process exited with error code.
+    $ systemctl --user status practica01.service --no-pager -l
     × practica01.service - Supervisor multiproces - Practica 01
          Loaded: loaded (/home/alumnat/.config/systemd/user/practica01.service; static)
-         Active: failed (Result: exit-code)
-        Process: 62708 ExecStart=/usr/bin/java -jar ... (code=exited, status=1/FAILURE)
+         Active: failed (Result: exit-code) since Wed 2026-10-14 18:35:34 CEST; 2s ago
+        Process: 73360 ExecStart=/usr/bin/java -jar .../target/supervisor.jar (code=exited, status=1/FAILURE)
+       Main PID: 73360 (code=exited, status=1/FAILURE)
+    ...
+    $ journalctl --user -u practica01.service --no-pager -n 15
+    ... java[73360]: [SUPERVISOR pid=73360 ppid=3546 thread=pipe] 18:35:34.029 [stdout pid=73514] Laia
+    ... java[73360]: [SUPERVISOR pid=73360 ppid=3546 thread=io-stdout] 18:35:34.038 [stdout pid=73515] COUNT=5 CHARS=18
+    ... java[73360]: [SUPERVISOR pid=73360 ppid=3546 thread=main] FALLADA: pid=73402 ppid=73360 codi=143 timeout=sí ... worker, BETA, 10, 0]
+    ... java[73360]: [SUPERVISOR pid=73360 ppid=3546 thread=main] FALLADA: pid=73484 ppid=73360 codi=7 timeout=no ... worker, GAMMA, 3, 7]
+    ... java[73360]: [SUPERVISOR pid=73360 ppid=3546 thread=main] fi: 5 processos, 2 fallits
+    ... systemd[3546]: practica01.service: Main process exited, code=exited, status=1/FAILURE
+    ... systemd[3546]: practica01.service: Failed with result 'exit-code'.
+    $ ps -eo pid,ppid,cmd | grep '[P]rocessForkJoinDemo' || echo "cap procés viu"
+    cap procés viu
 
-Journal (fragmento):
+![systemd: start, status y journal](capturas/systemd-start-status-journal.png)
+![systemd: journal y comprobación sin procesos](capturas/systemd-journal-sin-procesos.png)
 
-    [SUPERVISOR pid=62708 ppid=3546 thread=main] inici
-    [SUPERVISOR pid=62708 ppid=3546 thread=pool-1-thread-2] TIMEOUT: el fill 62736 supera 5000ms
-    [SUPERVISOR pid=62708 ppid=3546 thread=main] pipe: producer pid=62853 --stdout--> SUPERVISOR --stdin--> consumer pid=62854
-    [SUPERVISOR pid=62708 ppid=3546 thread=io-stdout] 17:55:05.789 [stdout pid=62854] COUNT=5 CHARS=18
-    [SUPERVISOR pid=62708 ppid=3546 thread=main] fi: 5 processos, 2 fallits
-
-- El PPID del supervisor es **3546**: el gestor `systemd --user`, no una shell.
+- El PPID del supervisor es **3546**: el gestor `systemd --user` (las líneas
+  `systemd[3546]` del journal), no una shell. Los hijos tienen PPID 73360, el
+  supervisor.
+- El journal contiene las líneas que el supervisor reemite, identificadas con
+  rol, PID y PPID, incluidas las de la pipe (`thread=pipe`) y la respuesta
+  `COUNT=5 CHARS=18`.
 - El servicio queda en `failed` con `status=1` porque la demo incluye dos
   hijos que fallan **a propósito** (BETA por timeout y GAMMA con código 7). Es
   el resultado esperado: el supervisor informa del fallo con su código de
