@@ -321,3 +321,59 @@ fallado** (código ≠ 0 o timeout).
   con el siguiente hijo (el consumer se ejecuta igualmente), marca el error
   como `FALLADA` por stderr y termina con código **1**, de modo que el error
   queda explícito también para la shell (o para systemd).
+
+## Paso 8a · Timeout (actividad D)
+
+Cada hijo tiene un límite de 5 s (`waitFor(limite)`). Si se pasa, el
+supervisor llama a `aturar()`: primero `destroy()` (SIGTERM, finalización
+ordenada) al hijo y sus descendientes; si al cabo de 2 s de gracia sigue
+vivo, `destroyForcibly()` (SIGKILL, finalización forzada).
+
+Escenario: ALPHA (2 pasos, código 0), BETA (10 pasos: supera el límite),
+GAMMA (3 pasos, código 7) y el consumer.
+
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] resultat: pid=22546 ppid=22526 codi=0 timeout=no durada=2082ms stdout=2 línies stderr=0 línies ordre=[..., worker, ALPHA, 2, 0]
+    ...
+    [SUPERVISOR pid=22526 ppid=8496 thread=io-stdout] 16:58:29.675 [stdout pid=22596] [WORKER-BETA pid=22596 ppid=22526 thread=main] pas 5/10
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] TIMEOUT: el fill 22596 supera 5000ms
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] fill 22596 aturat de forma ordenada
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] resultat: pid=22596 ppid=22526 codi=143 timeout=sí durada=5026ms stdout=5 línies stderr=0 línies ordre=[..., worker, BETA, 10, 0]
+    ...
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] resultat: pid=22662 ppid=22526 codi=7 timeout=no durada=3074ms ...
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] resultat: pid=22713 ppid=22526 codi=0 timeout=no durada=68ms ... consumer
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] FALLADA: pid=22596 ... codi=143 timeout=sí ...
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] FALLADA: pid=22662 ... codi=7 timeout=no ...
+    [SUPERVISOR pid=22526 ppid=8496 thread=main] fi: 4 processos, 2 fallits
+    1
+
+![Timeout (1)](capturas/paso8a-timeout-1.png)
+![Timeout (2)](capturas/paso8a-timeout-2.png)
+
+Comprobación con `ps` desde otra terminal de que BETA no queda vivo (la única
+línea es el propio `grep`):
+
+    $ ps -eo pid,ppid,stat,cmd | grep "worker BETA"
+      24478    8498 S+   grep --color=auto ... worker BETA
+
+![ps sin BETA](capturas/paso8a-ps-sin-beta.png)
+
+### Secuencia de finalización
+
+| Momento | Qué pasa |
+|---|---|
+| 16:58:24.6 | Se lanza BETA (pid 22596) |
+| 16:58:25.6 → 29.6 | Pasos 1/10 a 5/10 (uno por segundo) |
+| ~16:58:29.6 | `waitFor(5000 ms)` devuelve `false` → `TIMEOUT` |
+| inmediatamente | `destroy()` → SIGTERM. La JVM del worker termina de forma ordenada |
+| | `waitFor(2 s de gracia)` devuelve `true` → no hace falta SIGKILL |
+| | Código **143 = 128 + 15 (SIGTERM)**; duración 5026 ms |
+
+### Conclusiones
+
+- BETA se para entre el paso 5 y el 6: el límite son 5 s y cada paso dura 1 s.
+- La finalización ha sido **ordenada**: el worker ha respondido a SIGTERM
+  dentro del tiempo de gracia, así que no ha hecho falta `destroyForcibly()`.
+- El código 143 demuestra que el proceso ha terminado por la señal 15.
+- Un timeout cuenta como fallo (`exito()` es `false`): el supervisor sigue con
+  GAMMA y el consumer, informa de dos `FALLADA` y termina con código 1.
+- `ps` confirma que no queda ningún proceso `worker BETA` vivo.

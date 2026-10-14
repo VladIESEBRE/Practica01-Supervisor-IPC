@@ -168,6 +168,23 @@ los datos: tiene que recibir un **EOF** (*End Of File*). El EOF llega cuando
 
 En Java, `BufferedReader.readLine()` devuelve `null` al recibir el EOF.
 
+## Timeout y finalización ordenada o forzada
+
+`Process.waitFor(tiempo, unidad)` espera como mucho el tiempo indicado y
+devuelve `false` si el hijo todavía no ha terminado. En ese caso el
+supervisor aplica una parada en dos fases (`Supervisor.aturar`):
+
+1. **Ordenada**: `destroy()` envía **SIGTERM** al hijo y a sus descendientes.
+   El proceso puede reaccionar: una JVM ejecuta sus *shutdown hooks* y
+   termina. Código de retorno 143 (128 + 15).
+2. **Forzada** (solo si al cabo del tiempo de gracia sigue vivo):
+   `destroyForcibly()` envía **SIGKILL**. El kernel elimina el proceso sin
+   que este pueda hacer nada. Código 137 (128 + 9).
+
+Los descendientes se obtienen con `descendants()` **antes** de parar al hijo:
+si el hijo muriera primero, sus hijos quedarían huérfanos (adoptados por otro
+proceso) y ya no aparecerían como descendientes.
+
 ## Resultado inmutable (`record`)
 
 Cada ejecución se resume en un objeto `Resultado`, que es un `record` de
@@ -205,6 +222,11 @@ padre, como el 7 de la actividad B, hay que llamar a `System.exit(codigo)`.
    quedaría esperando para siempre y no escribiría nunca el resultado (y el
    supervisor, esperándolo con `waitFor()`, también se bloquearía).
 5. **¿Qué diferencia hay entre finalización ordenada y forzada?**
-   *Pendiente (paso de timeout).*
+   La ordenada (`destroy()`, SIGTERM) **pide** al proceso que termine: puede
+   cerrar ficheros, ejecutar sus shutdown hooks y salir (código 143). La
+   forzada (`destroyForcibly()`, SIGKILL) la ejecuta el kernel sin avisar: el
+   proceso no puede hacer limpieza (código 137). El supervisor siempre prueba
+   primero la ordenada y solo usa la forzada si el proceso no ha terminado
+   dentro del tiempo de gracia.
 6. **¿En qué se parece esta solución a Fork-Join y en qué se diferencia?**
    *Pendiente (paso de workers en paralelo).*

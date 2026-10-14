@@ -85,7 +85,8 @@ Ejemplo:
 - [x] Paso 6b · Rol PRODUCER
 - [x] Paso 6c · El supervisor envía datos por stdin y cierra el flujo
 - [x] Paso 7 · Resultado inmutable
-- [ ] Timeout, cancelación y shutdown hook
+- [x] Paso 8a · Timeout con finalización ordenada y forzada
+- [ ] Paso 8b · Cancelación con shutdown hook (sin procesos huérfanos)
 - [ ] Pipe productor → supervisor → consumidor
 - [ ] Tres workers con un máximo de dos simultáneos
 - [ ] Tests
