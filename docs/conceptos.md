@@ -153,6 +153,21 @@ fichero. Cuando un proceso lo crea otro programa (como el supervisor con
 `ProcessBuilder`), es el padre quien recibe estos flujos y tiene que leerlos
 o escribirlos.
 
+## EOF: fin de la entrada
+
+Un proceso que lee stdin no puede saber por sí mismo cuándo se han acabado
+los datos: tiene que recibir un **EOF** (*End Of File*). El EOF llega cuando
+**quien escribe cierra su extremo del tubo**:
+
+| Quién escribe | Cómo se produce el EOF |
+|---|---|
+| El usuario con el teclado | Ctrl+D |
+| Un fichero (`< fichero`) | Al llegar al final del fichero |
+| Otro proceso por una pipe | Cuando ese proceso termina o cierra el tubo |
+| El supervisor (`Process.getOutputStream()`) | Llamando a `close()` |
+
+En Java, `BufferedReader.readLine()` devuelve `null` al recibir el EOF.
+
 ## Por qué `System.exit(codigo)`
 
 Si el método `main` termina normalmente, la JVM acaba siempre con código 0
@@ -176,7 +191,10 @@ padre, como el 7 de la actividad B, hay que llamar a `System.exit(codigo)`.
    espera el otro tubo o el final del hijo, también se queda bloqueado
    (interbloqueo). Con un hilo lector por tubo los dos se vacían a la vez.
 4. **¿Qué aporta cerrar stdin después de escribir?**
-   *Pendiente (paso de stdin).*
+   Cerrar el tubo envía el **EOF** al hijo: le indica que no recibirá más
+   datos. Un proceso como el consumer lee hasta EOF, así que sin el cierre se
+   quedaría esperando para siempre y no escribiría nunca el resultado (y el
+   supervisor, esperándolo con `waitFor()`, también se bloquearía).
 5. **¿Qué diferencia hay entre finalización ordenada y forzada?**
    *Pendiente (paso de timeout).*
 6. **¿En qué se parece esta solución a Fork-Join y en qué se diferencia?**

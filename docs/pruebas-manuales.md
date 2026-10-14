@@ -149,3 +149,50 @@ origen, y se reemite por el stdout o el stderr del supervisor.
   capturado.
 - El código 7 del worker llega al supervisor. El supervisor de momento
   termina con 0; más adelante su código reflejará los errores de los hijos.
+
+## Paso 6a · Rol CONSUMER: lectura de stdin hasta EOF
+
+El consumer lee stdin línea a línea hasta que `readLine()` devuelve `null`
+(EOF), cuenta líneas y caracteres y escribe `COUNT=<n> CHARS=<n>` por stdout.
+Sus diagnósticos van por stderr (`Log.diagnostico`).
+
+### Prueba 1: entrada desde el teclado
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo consumer ; echo $?
+    [CONSUMER pid=7884 ppid=4861 thread=main] esperant dades per stdin
+    ana
+    pep
+                                  ← línea vacía (Intro de más)
+    [CONSUMER pid=7884 ppid=4861 thread=main] EOF rebut       ← tras Ctrl+D
+    COUNT=3 CHARS=6
+    0
+
+![Consumer desde el teclado](capturas/paso6a-consumer-teclado.png)
+
+Las líneas `ana` y `pep` son el eco del teclado en la terminal, no salida del
+programa. Sale `COUNT=3` porque se pulsó Intro una vez de más: una línea vacía
+también es una línea (0 caracteres). Ctrl+D envía el EOF; sin él, el consumer
+se queda esperando indefinidamente.
+
+### Prueba 2: entrada desde otro programa (pipe de la shell, solo para probar)
+
+    $ printf 'Ana\nJoan\nPep\nMarc\nLaia\n' | java -cp target/supervisor.jar practica01.ProcessForkJoinDemo consumer
+    [CONSUMER pid=9219 ppid=4861 thread=main] esperant dades per stdin
+    [CONSUMER pid=9219 ppid=4861 thread=main] EOF rebut
+    COUNT=5 CHARS=18
+
+![Consumer con pipe de la shell](capturas/paso6a-consumer-pipe-shell.png)
+
+CHARS = 3 (Ana) + 4 (Joan) + 3 (Pep) + 4 (Marc) + 4 (Laia) = 18. Los saltos de
+línea no se cuentan porque `readLine()` los elimina. El EOF llega solo: cuando
+`printf` termina, su extremo del tubo se cierra.
+
+### Prueba 3: solo stdout
+
+    $ printf 'Ana\nJoan\nPep\nMarc\nLaia\n' | java -cp target/supervisor.jar practica01.ProcessForkJoinDemo consumer 2>/dev/null
+    COUNT=5 CHARS=18
+
+![Consumer solo stdout](capturas/paso6a-consumer-solo-stdout.png)
+
+Al descartar stderr queda **solo el resultado**: el stdout del consumer
+contiene únicamente datos, que es lo que leerá el supervisor.

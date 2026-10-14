@@ -52,6 +52,7 @@ El mismo programa hace un rol u otro según el primer argumento:
 |---|---|---|
 | *(ninguno)* | SUPERVISOR | Coordina los procesos hijos |
 | `worker <NOMBRE> <pasos> <código>` | WORKER | Hace `<pasos>` pasos de 1 s y termina con `<código>` |
+| `consumer` | CONSUMER | Lee stdin hasta EOF y escribe `COUNT=<líneas> CHARS=<caracteres>` |
 
 Ejemplo:
 
@@ -79,7 +80,8 @@ Ejemplo:
 - [x] Paso 3 · Log con PID/PPID/hilo y rol WORKER
 - [x] Paso 4 · El supervisor lanza un worker con `ProcessBuilder`
 - [x] Paso 5 · Captura concurrente de stdout y stderr
-- [ ] Roles PRODUCER y CONSUMER
+- [x] Paso 6a · Rol CONSUMER (stdin y EOF)
+- [ ] Paso 6b · Rol PRODUCER
 - [ ] Envío de datos por stdin
 - [ ] Resultado inmutable
 - [ ] Timeout, cancelación y shutdown hook
