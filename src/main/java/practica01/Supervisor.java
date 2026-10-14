@@ -5,6 +5,7 @@
 package practica01;
 
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -28,6 +29,10 @@ public final class Supervisor {
     // el pool y el shutdown hook), por eso es un conjunto concurrente (thread-safe).
     private static final Set<Process> ACTIVOS = ConcurrentHashMap.newKeySet();
 
+    // true cuando el supervisor se está cerrando (shutdown hook): a partir de
+    // entonces no se lanza ningún hijo nuevo. volatile: todos los hilos ven el cambio.
+    private static volatile boolean cerrando = false;
+
     // Constructor privado: solo se usa el método estático run().
     private Supervisor() {
     }
@@ -41,7 +46,7 @@ public final class Supervisor {
         // Si el supervisor recibe Ctrl+C o kill (SIGINT/SIGTERM), la JVM ejecuta
         // este hilo antes de morir: para los hijos activos y así no quedan huérfanos.
         Runtime.getRuntime().addShutdownHook(
-                new Thread(Supervisor::cancelarActivos, "shutdown-hook"));
+                new Thread(Supervisor::alCerrar, "shutdown-hook"));
         Duration limite = Duration.ofSeconds(5);
         List<Resultado> resultados = new ArrayList<>(ejecutarWorkers(limite));
         resultados.addAll(ejecutarPipe(limite));
@@ -91,9 +96,8 @@ public final class Supervisor {
             throws Exception {
         Log.info("llançant: " + orden);
         Instant inicio = Instant.now();
-        Process hijo = new ProcessBuilder(orden).start(); // FORK
+        Process hijo = lanzar(orden); // FORK
         Log.info("fill creat amb pid=" + hijo.pid());
-        ACTIVOS.add(hijo);
 
         // Primero los lectores, para que ningún tubo de salida se llene.
         LectorFlujo lectorOut = new LectorFlujo(hijo.getInputStream(), "stdout", hijo.pid());
@@ -158,10 +162,8 @@ public final class Supervisor {
         List<String> ordenProd = ordenPara("producer");
         List<String> ordenCons = ordenPara("consumer");
         Instant inicio = Instant.now();
-        Process productor = new ProcessBuilder(ordenProd).start();   // FORK
-        Process consumidor = new ProcessBuilder(ordenCons).start();  // FORK
-        ACTIVOS.add(productor);
-        ACTIVOS.add(consumidor);
+        Process productor = lanzar(ordenProd);    // FORK
+        Process consumidor = lanzar(ordenCons);   // FORK
         Log.info("pipe: producer pid=" + productor.pid() + " --stdout--> SUPERVISOR --stdin--> consumer pid="
                 + consumidor.pid());
 
@@ -205,8 +207,33 @@ public final class Supervisor {
         Log.error("fill " + hijo.pid() + " aturat de forma forçada");
     }
 
-    // Lo ejecuta el shutdown hook: registra la causa del cierre y para todos los
-    // hijos que todavía estén en marcha (ordenada y, si hace falta, forzadamente).
+    // Lanza un hijo con ProcessBuilder (FORK) y lo apunta en ACTIVOS. Si el
+    // supervisor se está cerrando, no lanza nada; y si se ha empezado a cerrar
+    // justo mientras lo lanzaba, lo para enseguida. Así ningún hijo creado
+    // durante el cierre puede quedar huérfano (ver Incidencias).
+    static Process lanzar(List<String> orden) throws IOException, InterruptedException {
+        if (cerrando) {
+            Log.error("el supervisor s'està tancant: no es llança " + orden.subList(3, orden.size()));
+            throw new IllegalStateException("supervisor tancant-se");
+        }
+        Process hijo = new ProcessBuilder(orden).start();
+        ACTIVOS.add(hijo);
+        if (cerrando) {
+            Log.error("fill " + hijo.pid() + " creat durant el tancament: s'atura");
+            aturar(hijo);
+        }
+        return hijo;
+    }
+
+    // Lo ejecuta el shutdown hook cuando el supervisor recibe Ctrl+C o kill:
+    // marca que se está cerrando (ya no se lanzan hijos) y para los activos.
+    static void alCerrar() {
+        cerrando = true;
+        cancelarActivos();
+    }
+
+    // Registra la causa del cierre y para todos los hijos que todavía estén en
+    // marcha (ordenada y, si hace falta, forzadamente).
     static void cancelarActivos() {
         if (ACTIVOS.isEmpty()) {
             return;   // final normal: no queda ningún hijo vivo
