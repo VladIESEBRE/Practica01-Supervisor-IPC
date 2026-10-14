@@ -26,6 +26,13 @@ public final class Log {
         System.err.println(prefijo() + " " + mensaje);
     }
 
+
+    // Escribe un mensaje de diagnóstico por stderr. Lo usan PRODUCER y CONSUMER,
+    // porque su stdout está reservado a los datos (no se puede ensuciar con logs).
+    public static void diagnostico(String mensaje) {
+        System.err.println(prefijo() + " " + mensaje);
+    }
+
     // Construye el prefijo "[ROL pid=... ppid=... thread=...]" consultando
     // al sistema el PID de este proceso, el de su padre y el nombre del hilo actual.
     private static String prefijo() {

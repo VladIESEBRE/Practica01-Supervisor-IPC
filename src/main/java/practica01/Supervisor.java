@@ -11,7 +11,7 @@ public final class Supervisor {
     // Constructor privado: solo se usa el método estático run().
     private Supervisor() {}
 
-       // Lanza el worker GAMMA como proceso hijo, lee su stdout y su stderr a la
+    // Lanza el worker GAMMA como proceso hijo, lee su stdout y su stderr a la
     // vez con dos hilos, espera a que termine y muestra el resumen.
     public static int run() throws Exception {
         Log.info("inici");
