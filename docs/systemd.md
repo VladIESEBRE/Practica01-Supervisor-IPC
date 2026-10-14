@@ -119,6 +119,8 @@ Salida (después de la corrección de la incidencia):
   supervisor se está cerrando, y `run()` termina con `execució cancel·lada`.
 - Código 143 (SIGTERM) y **ningún proceso vivo** después de la parada.
 
+![Parada del servicio](capturas/systemd-stop.png)
+
 Antes de la corrección, la misma prueba ya no dejaba procesos vivos, pero
 mostraba una traza de excepción (ver [Incidencias](Incidencias.md)):
 
