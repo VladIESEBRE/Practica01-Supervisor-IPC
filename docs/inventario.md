@@ -116,12 +116,37 @@ su PID. El hilo `main` de Java no es un proceso.
 
 ## Mapa de procesos
 
+Datos de la ejecución completa de los pasos 9 y 10 (ver
+[pruebas-manuales.md](pruebas-manuales.md#pasos-9-y-10--pipe-y-pool-de-dos-workers-ejecución-completa)).
+El estado se ha observado con `ps` (`scripts/observar-arbol.sh`) mientras los
+procesos estaban vivos.
+
 | Rol | PID | PPID | Estado observado | Código de retorno |
 |---|---|---|---|---|
-| Supervisor | 49930 | 17731 (zsh) | `Sl+` | 130 (interrumpido con Ctrl+C) |
-| Worker Alpha | | | | |
-| Worker Beta | | | | |
-| Worker Gamma | | | | |
+| Supervisor | 54010 | 8496 (zsh) | En ejecución, padre de todos los demás (`pstree`) | 1 (hay dos hijos fallidos) |
+| Worker Alpha | 54034 | 54010 | En ejecución junto con BETA (`pstree`) | 0 |
+| Worker Beta | 54035 | 54010 | `Sl+` | 143 (timeout: SIGTERM) |
+| Worker Gamma | 54131 | 54010 | `Sl+` | 7 (error) |
+| Producer | 54279 | 54010 | — (dura ~70 ms) | 0 |
+| Consumer | 54280 | 54010 | — (dura ~90 ms) | 0 |
+
+Árbol:
+
+    zsh (8496)
+     └── java (54010) SUPERVISOR
+          ├── java (54034) WORKER-ALPHA   ┐ a la vez
+          ├── java (54035) WORKER-BETA    ┘ ┐ a la vez (cuando ALPHA ha acabado)
+          ├── java (54131) WORKER-GAMMA     ┘
+          ├── java (54279) PRODUCER   ┐ unidos por la pipe del supervisor
+          └── java (54280) CONSUMER   ┘
+
+![Árbol de procesos](capturas/paso10-arbol-procesos.png)
+
+En la observación inicial (paso 2), el supervisor solo se paró con Ctrl+C:
+
+| Rol | PID | PPID | Estado observado | Código de retorno |
+|---|---|---|---|---|
+| Supervisor (paso 2) | 49930 | 17731 (zsh) | `Sl+` | 130 (interrumpido con Ctrl+C) |
 
 ### Código de retorno
 

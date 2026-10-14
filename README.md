@@ -59,6 +59,15 @@ Ejemplo:
 
     java -cp target/supervisor.jar practica01.ProcessForkJoinDemo worker BETA 3 0
 
+### Observar el árbol de procesos
+
+En otra terminal, **antes** de lanzar el supervisor:
+
+    ./scripts/observar-arbol.sh
+
+Espera a que arranquen los workers y muestra el árbol de procesos con
+`pstree` y el estado con `ps` (solo Linux; la aplicación no lo necesita).
+
 ## Tests
 
     mvn test
@@ -87,7 +96,7 @@ Ejemplo:
 - [x] Paso 7 · Resultado inmutable
 - [x] Paso 8a · Timeout con finalización ordenada y forzada
 - [x] Paso 8b · Cancelación con shutdown hook (sin procesos huérfanos)
-- [ ] Pipe productor → supervisor → consumidor
-- [ ] Tres workers con un máximo de dos simultáneos
+- [x] Paso 9 · Pipe productor → supervisor → consumidor
+- [x] Paso 10 · Tres workers con un máximo de dos simultáneos
 - [ ] Tests
 - [ ] Informe final y actividades A–F

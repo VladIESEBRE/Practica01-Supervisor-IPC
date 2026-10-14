@@ -417,3 +417,102 @@ supervisor** y comprueba que no queda ningún worker vivo:
   llega a escribir el resumen final: la JVM se cierra en cuanto acaba el hook.
 - `ps` no encuentra ningún `worker BETA`: **no quedan procesos huérfanos**.
   Sin el hook, BETA habría continuado ejecutándose, adoptado por otro proceso.
+
+## Pasos 9 y 10 · Pipe y pool de dos workers (ejecución completa)
+
+Ejecución completa del supervisor observada a la vez desde otra terminal con
+`scripts/observar-arbol.sh`. Supervisor: **pid 54010**.
+
+### Terminal 2: árbol de procesos
+
+    $ ./scripts/observar-arbol.sh
+    Esperant que arrenqui "worker BETA"...
+
+    === Arbre de processos amb ALPHA i BETA en marxa ===
+    java(54010)─┬─java(54034)
+                └─java(54035)
+    Esperant que arrenqui "worker GAMMA"...
+
+    === Arbre de processos quan GAMMA ocupa el lloc d'ALPHA ===
+    java(54010)─┬─java(54035)
+                └─java(54131)
+
+    === ps dels workers vius ===
+      54035   54010 Sl+   00:03 /usr/lib/jvm/java-21-openjdk-amd64/bin/java -cp target/supervisor.jar practica01.ProcessForkJoinDemo worker BETA 10 0
+      54131   54010 Sl+   00:01 /usr/lib/jvm/java-21-openjdk-amd64/bin/java -cp target/supervisor.jar practica01.ProcessForkJoinDemo worker GAMMA 3 7
+
+![Árbol de procesos](capturas/paso10-arbol-procesos.png)
+
+### Terminal 1: salida del supervisor
+
+![Ejecución completa (1)](capturas/paso9-10-ejecucion-1.png)
+![Ejecución completa (2)](capturas/paso9-10-ejecucion-2.png)
+
+Fragmentos más relevantes:
+
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-2] llançant: [..., worker, BETA, 10, 0]
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-1] llançant: [..., worker, ALPHA, 2, 0]
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-1] fill creat amb pid=54034
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-2] fill creat amb pid=54035
+    ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-1] resultat: pid=54034 ppid=54010 codi=0 timeout=no durada=2071ms ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-1] llançant: [..., worker, GAMMA, 3, 7]
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-1] fill creat amb pid=54131
+    ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-2] TIMEOUT: el fill 54035 supera 5000ms
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-2] fill 54035 aturat de forma ordenada
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-2] resultat: pid=54035 ppid=54010 codi=143 timeout=sí durada=5047ms ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=pool-1-thread-1] resultat: pid=54131 ppid=54010 codi=7 timeout=no durada=3080ms ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] pipe: producer pid=54279 --stdout--> SUPERVISOR --stdin--> consumer pid=54280
+    [SUPERVISOR pid=54010 ppid=8496 thread=io-stderr] 17:42:42.945 [stderr pid=54279] [PRODUCER pid=54279 ppid=54010 thread=main] generant 5 noms
+    [SUPERVISOR pid=54010 ppid=8496 thread=pipe] 17:42:42.945 [stdout pid=54279] Ana
+    [SUPERVISOR pid=54010 ppid=8496 thread=pipe] 17:42:42.946 [stdout pid=54279] Joan
+    [SUPERVISOR pid=54010 ppid=8496 thread=pipe] 17:42:42.946 [stdout pid=54279] Pep
+    [SUPERVISOR pid=54010 ppid=8496 thread=pipe] 17:42:42.946 [stdout pid=54279] Marc
+    [SUPERVISOR pid=54010 ppid=8496 thread=pipe] 17:42:42.946 [stdout pid=54279] Laia
+    [SUPERVISOR pid=54010 ppid=8496 thread=io-stderr] 17:42:42.951 [stderr pid=54280] [CONSUMER pid=54280 ppid=54010 thread=main] esperant dades per stdin
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] resultat: pid=54279 ppid=54010 codi=0 timeout=no durada=73ms stdout=5 línies stderr=1 línies ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=io-stderr] 17:42:42.955 [stderr pid=54280] [CONSUMER pid=54280 ppid=54010 thread=main] EOF rebut
+    [SUPERVISOR pid=54010 ppid=8496 thread=io-stdout] 17:42:42.960 [stdout pid=54280] COUNT=5 CHARS=18
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] resultat: pid=54280 ppid=54010 codi=0 timeout=no durada=86ms stdout=1 línies stderr=2 línies ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] pipe: 5 línies transmeses, resposta del consumer: [17:42:42.960 [stdout pid=54280] COUNT=5 CHARS=18]
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] FALLADA: pid=54035 ... codi=143 timeout=sí ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] FALLADA: pid=54131 ... codi=7 timeout=no ...
+    [SUPERVISOR pid=54010 ppid=8496 thread=main] fi: 5 processos, 2 fallits
+    1
+
+### Conclusiones: pool (paso 10)
+
+Cronología de los workers (la duración de cada uno sale de su resultado):
+
+    segundo:     0    1    2    3    4    5
+    thread-1:    [ALPHA════][GAMMA═════════]
+    thread-2:    [BETA═════════════════════]✂ timeout
+
+- ALPHA y BETA arrancan a la vez, cada uno en un hilo del pool
+  (`pool-1-thread-1` y `pool-1-thread-2`).
+- GAMMA no arranca hasta que ALPHA termina (17:42:39.8): ocupa el hilo que
+  ha quedado libre. Los dos `pstree` lo confirman: nunca hay más de **dos
+  workers hijos** a la vez.
+- Todos los workers tienen **PPID 54010**: son hijos del supervisor.
+- En total, unos 5 s en lugar de los ~10 s de la ejecución secuencial.
+
+### Conclusiones: pipe (paso 9)
+
+- El producer (54279) y el consumer (54280) son hijos del supervisor
+  (PPID 54010). No hay ninguna shell entre ellos.
+- El hilo `pipe` del supervisor lee cada línea del stdout del producer y la
+  escribe en el stdin del consumer. Cuando el producer termina, cierra el
+  stdin del consumer (EOF) y el consumer responde `COUNT=5 CHARS=18`.
+- El diagnóstico del producer (`generant 5 noms`) va por stderr y no pasa por
+  la pipe: lo lee un hilo `io-stderr` aparte.
+
+### Recorrido de los datos (actividad E)
+
+    PRODUCER (54279)                 SUPERVISOR (54010)                      CONSUMER (54280)
+    System.out.println("Ana") ──► tubo stdout ──► hilo "pipe": readLine()
+                                                  write("Ana") ──► tubo stdin ──► readLine() → lineas++, chars+=3
+    ... (Joan, Pep, Marc, Laia) ...
+    fin del proceso → EOF ──────────────────────► close() del stdin ──EOF──► readLine() == null
+                                                                             System.out.println("COUNT=5 CHARS=18")
+                                  hilo io-stdout ◄── tubo stdout ◄──────────┘

@@ -203,6 +203,26 @@ no se ejecuta. En ese caso, la protección la da quien gestiona el supervisor
 `ACTIVOS` es un `ConcurrentHashMap.newKeySet()` porque lo usan varios hilos a
 la vez (main, pool y hook).
 
+## Pool de hilos y límite de concurrencia
+
+`Executors.newFixedThreadPool(2)` crea un pool con dos hilos
+(`pool-1-thread-1` y `pool-1-thread-2`). Cada tarea enviada con `submit()`
+llama a `ejecutar()`, que lanza un worker y **espera** a que termine. Por lo
+tanto, como mucho hay dos workers vivos a la vez: el tercero espera en la cola
+del pool hasta que un hilo queda libre. `submit()` devuelve un `Future`, y
+`Future.get()` espera el `Resultado` de cada worker.
+
+Los hilos del pool son **hilos** del supervisor (mismo PID); los workers que
+lanzan son **procesos** (PID propio, PPID = supervisor).
+
+## Pipe implementada por el supervisor
+
+En vez de usar la `|` de la shell, el supervisor conecta los dos procesos:
+un hilo (`pipe`, clase `LectorFlujo` con destino de reenvío) lee el stdout
+del producer línea a línea y escribe cada línea en el stdin del consumer.
+Cuando el producer termina, `readLine()` devuelve `null` y el hilo cierra el
+stdin del consumer, que recibe el EOF y responde.
+
 ## Resultado inmutable (`record`)
 
 Cada ejecución se resume en un objeto `Resultado`, que es un `record` de
@@ -247,4 +267,11 @@ padre, como el 7 de la actividad B, hay que llamar a `System.exit(codigo)`.
    primero la ordenada y solo usa la forzada si el proceso no ha terminado
    dentro del tiempo de gracia.
 6. **¿En qué se parece esta solución a Fork-Join y en qué se diferencia?**
-   *Pendiente (paso de workers en paralelo).*
+   Se parece en la estructura: el supervisor **divide** el trabajo en tareas
+   independientes y las lanza (fork: `pool.submit` → `ProcessBuilder.start()`),
+   y después **espera y agrega** los resultados (join: `Future.get()` →
+   `waitFor()` → `Resultado`). Se diferencia en que cada tarea es un
+   **proceso** con PID y memoria propios, no un hilo de un `ForkJoinPool`: no
+   comparten memoria, se comunican solo por stdin/stdout/stderr y el código de
+   retorno, crearlas cuesta más (~70-90 ms por JVM) y se pueden aislar y matar
+   individualmente (timeout, señales) sin afectar al supervisor.
