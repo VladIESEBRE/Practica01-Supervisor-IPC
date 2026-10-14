@@ -4,6 +4,9 @@
 // terminal (inheritIO) y recoge su código de retorno.
 package practica01;
 
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,33 +14,51 @@ public final class Supervisor {
     // Constructor privado: solo se usa el método estático run().
     private Supervisor() {}
 
-    // Lanza el worker GAMMA como proceso hijo, lee su stdout y su stderr a la
-    // vez con dos hilos, espera a que termine y muestra el resumen.
+    // Demo del supervisor: ejecuta un worker (sin datos de entrada) y después
+    // un consumer al que se le envían cinco nombres por stdin.
     public static int run() throws Exception {
         Log.info("inici");
-        List<String> orden = ordenPara("worker", "GAMMA", "3", "7");
-        Log.info("llançant: " + orden);
+        ejecutar(ordenPara("worker", "GAMMA", "3", "7"), List.of());
+        ejecutar(ordenPara("consumer"), List.of("Ana", "Joan", "Pep", "Marc", "Laia"));
+        Log.info("fi");
+        return 0;
+    }
 
-        ProcessBuilder pb = new ProcessBuilder(orden);   // ya SIN inheritIO()
-        Process hijo = pb.start();                       // FORK
+    // Lanza un proceso hijo con la orden indicada, le escribe las líneas de
+    // "entrada" por stdin y cierra el tubo (EOF), lee su stdout y su stderr a
+    // la vez con dos hilos y espera a que termine. Devuelve su código de retorno.
+    static int ejecutar(List<String> orden, List<String> entrada) throws Exception {
+        Log.info("llançant: " + orden);
+        Process hijo = new ProcessBuilder(orden).start();   // FORK
         Log.info("fill creat amb pid=" + hijo.pid());
 
-        // Un hilo para cada tubo: se leen los dos a la vez mientras el hijo trabaja.
-        // Ojo con los nombres: getInputStream() es el STDOUT del hijo
-        // (para nosotros es "entrada", porque lo leemos).
+        // Primero los lectores, para que ningún tubo de salida se llene.
         LectorFlujo lectorOut = new LectorFlujo(hijo.getInputStream(), "stdout", hijo.pid());
         LectorFlujo lectorErr = new LectorFlujo(hijo.getErrorStream(), "stderr", hijo.pid());
         lectorOut.start();
         lectorErr.start();
 
+        // Escribimos en el stdin del hijo. Ojo: getOutputStream() es el STDIN
+        // del hijo (para nosotros es "salida", porque escribimos en él).
+        // El try (...) cierra el tubo al terminar el bloque: el hijo recibe EOF.
+        try (BufferedWriter stdinHijo = new BufferedWriter(
+                new OutputStreamWriter(hijo.getOutputStream(), StandardCharsets.UTF_8))) {
+            for (String linea : entrada) {
+                stdinHijo.write(linea);
+                stdinHijo.newLine();
+            }
+        }
+        Log.info("stdin del fill " + hijo.pid() + " tancat (EOF enviat, "
+                + entrada.size() + " línies)");
+
         int codigo = hijo.waitFor();   // JOIN con el proceso hijo
-        lectorOut.join();              // esperamos a que los hilos acaben de leer lo que quede
+        lectorOut.join();              // esperamos a que los lectores acaben
         lectorErr.join();
 
         Log.info("fill pid=" + hijo.pid() + " ha acabat amb codi " + codigo
                 + " (stdout=" + lectorOut.getLineas().size() + " línies, stderr="
                 + lectorErr.getLineas().size() + " línies)");
-        return 0;
+        return codigo;
     }
 
     // Construye la orden para ejecutar ESTE MISMO programa con otro rol:
