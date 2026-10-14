@@ -1,4 +1,7 @@
-# Pruebas manuales
+# Pruebas
+
+Las pruebas automáticas están descritas en la sección [Tests automáticos](#paso-11--tests-automáticos-junit).
+El resto del documento son pruebas manuales de cada paso.
 
 Ejecuciones hechas desde la terminal para comprobar cada rol por separado,
 antes de que el supervisor los lance. Las pruebas automáticas (JUnit) están
@@ -516,3 +519,27 @@ Cronología de los workers (la duración de cada uno sale de su resultado):
     fin del proceso → EOF ──────────────────────► close() del stdin ──EOF──► readLine() == null
                                                                              System.out.println("COUNT=5 CHARS=18")
                                   hilo io-stdout ◄── tubo stdout ◄──────────┘
+
+## Paso 11 · Tests automáticos (JUnit)
+
+`src/test/java/practica01/SupervisorTest.java`, que se ejecuta con `mvn test`.
+Los hijos se lanzan con el mismo `java` y el mismo classpath que los tests:
+no hace falta Internet ni nada instalado aparte de Java. Cada test tiene un
+máximo de 30 s (`@Timeout`), para que ninguno pueda quedarse colgado.
+
+| Test | Qué comprueba |
+|---|---|
+| `exito` | Worker que acaba bien: código 0, sin timeout, salida capturada con rol, PPID = proceso de los tests, no queda vivo |
+| `ordenInexistente` | Una orden que no existe produce `IOException` en `ProcessBuilder.start()` |
+| `stderrYCodigoDeError` | Worker con código 7: error capturado en stderr con su origen y resultado marcado como fallido |
+| `timeout` | Worker de 10 s con límite de 1 s: `timeout=true`, código 143 (SIGTERM), duración < 5 s y no queda vivo |
+| `stdin` | Se envían 5 nombres al consumer y se cierra stdin: responde `COUNT=5 CHARS=18` |
+| `stdinVacio` | Se cierra stdin sin escribir: `COUNT=0 CHARS=0`, sin quedarse esperando |
+| `pipe` | Producer → supervisor → consumer: los dos son hijos, se transmiten 5 líneas, `COUNT=5 CHARS=18` |
+| `cancelacion` | Con un worker de 20 s en marcha se llama al código del shutdown hook: código 143, sin timeout, no queda vivo |
+| `poolDeWorkers` | Los 3 workers del pool: ALPHA bien, BETA timeout, GAMMA código 7, ninguno vivo al final |
+
+Resultado (3 ejecuciones seguidas, todas iguales):
+
+    Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.3 s -- in practica01.SupervisorTest
+    BUILD SUCCESS

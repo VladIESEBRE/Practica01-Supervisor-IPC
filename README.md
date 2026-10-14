@@ -72,13 +72,23 @@ Espera a que arranquen los workers y muestra el árbol de procesos con
 
     mvn test
 
+9 tests JUnit (éxito, orden inexistente, stderr, timeout, stdin, pipe,
+cancelación y pool), sin Internet. Detalle en
+[docs/pruebas-manuales.md](docs/pruebas-manuales.md#paso-11--tests-automáticos-junit).
+
+## Como servicio systemd (ampliación)
+
+Unidad de usuario `Type=oneshot` en `systemd/practica01.service`. Instalación,
+órdenes y resultados en [docs/systemd.md](docs/systemd.md).
+
 ## Documentación
 
 | Documento | Contenido |
 |---|---|
 | [docs/diseno.md](docs/diseno.md) | Diseño, flujo y decisiones |
 | [docs/conceptos.md](docs/conceptos.md) | Conceptos teóricos y respuestas a las preguntas de la defensa |
-| [docs/pruebas-manuales.md](docs/pruebas-manuales.md) | Pruebas manuales de cada rol y resultados |
+| [docs/pruebas-manuales.md](docs/pruebas-manuales.md) | Pruebas manuales de cada paso y tests automáticos |
+| [docs/systemd.md](docs/systemd.md) | Ampliación: el supervisor como servicio systemd |
 | [docs/inventario.md](docs/inventario.md) | Observación de procesos con `ps` y `pstree`, mapa de procesos |
 | [docs/Incidencias.md](docs/Incidencias.md) | Registro de incidencias |
 | [docs/uso-ia.md](docs/uso-ia.md) | Declaración de autoría y de uso de IA |
@@ -98,5 +108,6 @@ Espera a que arranquen los workers y muestra el árbol de procesos con
 - [x] Paso 8b · Cancelación con shutdown hook (sin procesos huérfanos)
 - [x] Paso 9 · Pipe productor → supervisor → consumidor
 - [x] Paso 10 · Tres workers con un máximo de dos simultáneos
-- [ ] Tests
+- [x] Paso 11 · Tests automáticos (9 tests JUnit)
+- [x] Ampliación · Servicio systemd (`Type=oneshot`)
 - [ ] Informe final y actividades A–F
