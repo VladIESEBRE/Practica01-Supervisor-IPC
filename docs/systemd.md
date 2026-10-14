@@ -98,20 +98,31 @@ y entonces sí con `User=alumnat`.
 
 ## Resultado de la parada a medias
 
-Con el servicio en marcha (ALPHA y BETA trabajando), `systemctl --user stop`:
+    $ systemctl --user start --no-block practica01.service; sleep 3; systemctl --user stop practica01.service; journalctl --user -u practica01.service --no-pager -n 8; ps -eo pid,ppid,cmd | grep '[P]rocessForkJoinDemo' || echo "cap procés viu"
 
-    --- workers antes del stop:
-      63039   63007 ... worker BETA 10 0
-      63040   63007 ... worker ALPHA 2 0
-    --- workers después del stop:
-    (ninguno)
+Salida (después de la corrección de la incidencia):
 
-    [SUPERVISOR pid=63007 ppid=3546 thread=shutdown-hook] fill 63040 aturat de forma ordenada
+    [SUPERVISOR pid=89477 ppid=3546 thread=main] el supervisor s'està tancant: no es llança [practica01.ProcessForkJoinDemo, producer]
+    [SUPERVISOR pid=89477 ppid=3546 thread=main] execució cancel·lada: el supervisor s'està tancant
+    [SUPERVISOR pid=89477 ppid=3546 thread=shutdown-hook] fill 89554 aturat de forma ordenada
+    [SUPERVISOR pid=89477 ppid=3546 thread=shutdown-hook] fill 89503 aturat de forma ordenada
     practica01.service: Main process exited, code=exited, status=143/n/a
+    practica01.service: Failed with result 'exit-code'.
     Stopped practica01.service - Supervisor multiproces - Practica 01.
+    cap procés viu
 
-systemd envía SIGTERM a todo el grupo de control; el shutdown hook del
-supervisor también para a sus hijos. No queda ningún worker vivo.
+- `systemctl stop` envía SIGTERM a todo el grupo de control
+  (`KillMode=control-group`): supervisor y workers.
+- El shutdown hook del supervisor marca el cierre y para a los hijos
+  activos de forma ordenada.
+- El hilo `main` ya no lanza la pipe: `lanzar()` lo rechaza porque el
+  supervisor se está cerrando, y `run()` termina con `execució cancel·lada`.
+- Código 143 (SIGTERM) y **ningún proceso vivo** después de la parada.
+
+Antes de la corrección, la misma prueba ya no dejaba procesos vivos, pero
+mostraba una traza de excepción (ver [Incidencias](Incidencias.md)):
+
+![Parada del servicio antes de la corrección](capturas/systemd-stop-antes-correccion.png)
 
 ## ¿Por qué `Type=oneshot` y no un servicio residente?
 
