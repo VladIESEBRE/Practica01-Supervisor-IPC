@@ -84,7 +84,7 @@ Ejemplo:
 - [x] Paso 6a · Rol CONSUMER (stdin y EOF)
 - [x] Paso 6b · Rol PRODUCER
 - [x] Paso 6c · El supervisor envía datos por stdin y cierra el flujo
-- [ ] Resultado inmutable
+- [x] Paso 7 · Resultado inmutable
 - [ ] Timeout, cancelación y shutdown hook
 - [ ] Pipe productor → supervisor → consumidor
 - [ ] Tres workers con un máximo de dos simultáneos

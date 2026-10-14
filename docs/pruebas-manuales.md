@@ -292,3 +292,32 @@ consumer con cinco nombres.
 - Si no se cerrara el stdin, el consumer no recibiría nunca el EOF: se
   quedaría en `readLine()` para siempre y el supervisor en `waitFor()`, es
   decir, los dos colgados.
+
+## Paso 7 · Resultado inmutable
+
+`Supervisor.ejecutar()` devuelve un `Resultado` (record inmutable) con orden,
+PID, PPID, código, timeout, duración y las líneas de stdout y stderr. El
+supervisor recoge todos los resultados y termina con **1 si alguno ha
+fallado** (código ≠ 0 o timeout).
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo ; echo $?
+    ...
+    [SUPERVISOR pid=12107 ppid=8496 thread=main] resultat: pid=12129 ppid=12107 codi=7 timeout=no durada=3088ms stdout=3 línies stderr=1 línies ordre=[practica01.ProcessForkJoinDemo, worker, GAMMA, 3, 7]
+    ...
+    [SUPERVISOR pid=12107 ppid=8496 thread=main] resultat: pid=12204 ppid=12107 codi=0 timeout=no durada=69ms stdout=1 línies stderr=2 línies ordre=[practica01.ProcessForkJoinDemo, consumer]
+    [SUPERVISOR pid=12107 ppid=8496 thread=main] FALLADA: pid=12129 ppid=12107 codi=7 timeout=no durada=3088ms ...
+    [SUPERVISOR pid=12107 ppid=8496 thread=main] fi: 2 processos, 1 fallits
+    1
+
+![Resultado inmutable](capturas/paso7-resultado-inmutable.png)
+
+### Conclusiones
+
+- Duración del worker GAMMA: **3088 ms** = 3 pasos × 1 s de `sleep` + ~90 ms
+  de arranque de la JVM del hijo.
+- Duración del consumer: **69 ms**: no tiene pausas; solo arranca, lee cinco
+  líneas y responde.
+- **Actividad B**: el worker acaba con código 7, el supervisor **continúa**
+  con el siguiente hijo (el consumer se ejecuta igualmente), marca el error
+  como `FALLADA` por stderr y termina con código **1**, de modo que el error
+  queda explícito también para la shell (o para systemd).

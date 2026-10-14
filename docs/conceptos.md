@@ -168,6 +168,15 @@ los datos: tiene que recibir un **EOF** (*End Of File*). El EOF llega cuando
 
 En Java, `BufferedReader.readLine()` devuelve `null` al recibir el EOF.
 
+## Resultado inmutable (`record`)
+
+Cada ejecución se resume en un objeto `Resultado`, que es un `record` de
+Java: sus campos son `final`, no tiene métodos `set` y el constructor
+compacto copia las listas con `List.copyOf`, de modo que nadie puede
+modificarlas después. Así un resultado se puede pasar entre hilos (por
+ejemplo, desde los hilos del pool al hilo `main`) sin riesgo de que uno lo
+modifique mientras otro lo lee.
+
 ## Por qué `System.exit(codigo)`
 
 Si el método `main` termina normalmente, la JVM acaba siempre con código 0
