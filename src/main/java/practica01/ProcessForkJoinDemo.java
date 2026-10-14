@@ -10,6 +10,7 @@ public class ProcessForkJoinDemo {
     //   sin argumentos               -> supervisor
     //   worker <NOMBRE> <pasos> <cod> -> worker
     //   consumer                     -> consumidor (cuenta líneas de stdin)
+    //   producer                     -> productor (5 nombres por stdout)
     //   cualquier otra cosa          -> error, código 2
     public static void main(String[] args) throws Exception {
         String rol = args.length > 0 ? args[0] : "supervisor";
@@ -20,6 +21,7 @@ public class ProcessForkJoinDemo {
                     Integer.parseInt(args[2]),
                     Integer.parseInt(args[3]));
             case "consumer" -> Consumer.run();
+            case "producer" -> Producer.run();
             default -> {
                 Log.error("rol desconegut: " + rol);
                 yield 2;
