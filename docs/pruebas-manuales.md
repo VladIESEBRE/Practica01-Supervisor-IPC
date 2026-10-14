@@ -196,3 +196,53 @@ línea no se cuentan porque `readLine()` los elimina. El EOF llega solo: cuando
 
 Al descartar stderr queda **solo el resultado**: el stdout del consumer
 contiene únicamente datos, que es lo que leerá el supervisor.
+
+## Paso 6b · Rol PRODUCER
+
+El producer escribe cinco nombres por stdout (datos) y su diagnóstico por
+stderr.
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo producer ; echo $?
+    [PRODUCER pid=16448 ppid=4861 thread=main] generant 5 noms
+    Ana
+    Joan
+    Pep
+    Marc
+    Laia
+    0
+
+![Producer](capturas/paso6b-producer.png)
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo producer 2>/dev/null
+    Ana
+    Joan
+    Pep
+    Marc
+    Laia
+
+![Producer solo stdout](capturas/paso6b-producer-solo-stdout.png)
+
+Prueba de compatibilidad producer → consumer con la pipe **de la shell**
+(solo para comprobar que los roles encajan; en la solución la conexión la hace
+el supervisor):
+
+    $ java ... producer | java ... consumer
+    [PRODUCER pid=17400 ppid=4861 thread=main] generant 5 noms
+    [CONSUMER pid=17401 ppid=4861 thread=main] esperant dades per stdin
+    [CONSUMER pid=17401 ppid=4861 thread=main] EOF rebut
+    COUNT=5 CHARS=18
+
+![Producer y consumer con pipe de la shell](capturas/paso6b-producer-consumer-pipe-shell.png)
+
+### Conclusiones
+
+- La línea `[PRODUCER ...] generant 5 noms` no se cuenta como nombre porque va
+  por **stderr**, y la pipe `|` solo conecta el **stdout** del producer con el
+  stdin del consumer. Los stderr de los dos procesos siguen yendo a la
+  terminal.
+- Producer y consumer tienen **el mismo padre** (PPID 4861, la `zsh`): es la
+  shell quien crea los dos procesos y el tubo que los une. Son procesos
+  hermanos. En el paso 9 el padre de los dos será el supervisor, y será él
+  quien pase los datos de uno a otro.
+- El consumer recibe EOF sin Ctrl+D: cuando el producer termina, su stdout se
+  cierra.
