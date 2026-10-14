@@ -1,0 +1,27 @@
+# practica01.service: unidad de systemd que ejecuta el supervisor como un
+# servicio de tipo oneshot: systemd lo inicia, espera a que acabe y guarda su
+# stdout/stderr en el journal. Es una unidad de USUARIO (systemctl --user):
+# se ejecuta con la cuenta del alumno, sin privilegios ni sudo, y no se
+# habilita para que arranque sola.
+#
+# Instalación (sin habilitar):
+#   mkdir -p ~/.config/systemd/user
+#   cp systemd/practica01.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+
+[Unit]
+Description=Supervisor multiproces - Practica 01
+
+[Service]
+# oneshot: una tarea finita; el servicio está "activándose" mientras el
+# supervisor trabaja y termina cuando el supervisor termina.
+Type=oneshot
+WorkingDirectory=/home/alumnat/Escriptori/Servicios y procesos/Practica_01/supervisor
+ExecStart=/usr/bin/java -jar "/home/alumnat/Escriptori/Servicios y procesos/Practica_01/supervisor/target/supervisor.jar"
+# Mayor que el límite interno de los workers (5 s) más la gracia (2 s) y la pipe.
+TimeoutStartSec=90s
+# Si systemd para el servicio, envía la señal a todo el grupo de control:
+# supervisor y workers. Ningún worker puede quedar fuera.
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
