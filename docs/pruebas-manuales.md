@@ -246,3 +246,49 @@ el supervisor):
   quien pase los datos de uno a otro.
 - El consumer recibe EOF sin Ctrl+D: cuando el producer termina, su stdout se
   cierra.
+
+## Paso 6c · El supervisor envía datos por stdin y cierra el flujo
+
+`Supervisor.ejecutar(orden, entrada)` lanza un hijo, arranca los dos lectores,
+escribe las líneas de `entrada` en el stdin del hijo
+(`Process.getOutputStream()`) y lo **cierra** (try-with-resources), de modo
+que el hijo recibe EOF. Se ejecuta un worker (entrada vacía) y después el
+consumer con cinco nombres.
+
+    $ java -cp target/supervisor.jar practica01.ProcessForkJoinDemo ; echo $?
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] inici
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] llançant: [..., worker, GAMMA, 3, 7]
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] fill creat amb pid=25165
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] stdin del fill 25165 tancat (EOF enviat, 0 línies)
+    [SUPERVISOR pid=25145 ppid=4861 thread=io-stdout] 10:06:21.829 [stdout pid=25165] [WORKER-GAMMA pid=25165 ppid=25145 thread=main] pas 1/3
+    ...
+    [SUPERVISOR pid=25145 ppid=4861 thread=io-stderr] 10:06:24.822 [stderr pid=25165] [WORKER-GAMMA pid=25165 ppid=25145 thread=main] acabo amb error, codi 7
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] fill pid=25165 ha acabat amb codi 7 (stdout=3 línies, stderr=1 línies)
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] llançant: [..., consumer]
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] fill creat amb pid=25226
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] stdin del fill 25226 tancat (EOF enviat, 5 línies)
+    [SUPERVISOR pid=25145 ppid=4861 thread=io-stderr] 10:06:25.019 [stderr pid=25226] [CONSUMER pid=25226 ppid=25145 thread=main] esperant dades per stdin
+    [SUPERVISOR pid=25145 ppid=4861 thread=io-stderr] 10:06:25.020 [stderr pid=25226] [CONSUMER pid=25226 ppid=25145 thread=main] EOF rebut
+    [SUPERVISOR pid=25145 ppid=4861 thread=io-stdout] 10:06:25.028 [stdout pid=25226] COUNT=5 CHARS=18
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] fill pid=25226 ha acabat amb codi 0 (stdout=1 línies, stderr=2 línies)
+    [SUPERVISOR pid=25145 ppid=4861 thread=main] fi
+    0
+
+![Supervisor envía datos al consumer](capturas/paso6c-supervisor-stdin-consumer.png)
+
+### Conclusiones
+
+- El consumer tiene **PPID 25145**: ahora su padre es el supervisor, no la
+  shell.
+- Los nombres viajan **hacia** el consumer (supervisor → stdin del hijo, desde
+  el hilo `main`). El hilo `io-stdout` lee lo que el consumer **devuelve**:
+  solo `COUNT=5 CHARS=18`. El hilo `io-stderr` lee sus dos diagnósticos.
+- El mensaje `stdin ... tancat (5 línies)` aparece **antes** de que el consumer
+  diga `esperant dades per stdin`: el supervisor escribe en el tubo cuando la
+  JVM del consumer todavía está arrancando. Los datos esperan en el búfer del
+  tubo hasta que el consumer los lee.
+- Al worker se le cierra el stdin sin escribir nada (0 líneas): no lee stdin,
+  así que no le afecta.
+- Si no se cerrara el stdin, el consumer no recibiría nunca el EOF: se
+  quedaría en `readLine()` para siempre y el supervisor en `waitFor()`, es
+  decir, los dos colgados.

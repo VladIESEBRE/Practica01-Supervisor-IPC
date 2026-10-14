@@ -83,7 +83,7 @@ Ejemplo:
 - [x] Paso 5 · Captura concurrente de stdout y stderr
 - [x] Paso 6a · Rol CONSUMER (stdin y EOF)
 - [x] Paso 6b · Rol PRODUCER
-- [ ] Paso 6c · El supervisor envía datos por stdin y cierra el flujo
+- [x] Paso 6c · El supervisor envía datos por stdin y cierra el flujo
 - [ ] Resultado inmutable
 - [ ] Timeout, cancelación y shutdown hook
 - [ ] Pipe productor → supervisor → consumidor
