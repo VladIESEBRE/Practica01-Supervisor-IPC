@@ -84,8 +84,8 @@ Unidad de usuario `Type=oneshot` en `systemd/practica01.service`. Instalación,
 ## Documentación
 
 Informe completo (resumen, decisiones, evidencias con capturas, mapa de
-procesos, actividades A–F, criterios, preguntas de la defensa, incidencias y
-uso de IA): **[Informe_Practica01.docx](Informe_Practica01.docx)**.
+procesos, actividades A–F, criterios, preguntas de la defensa, incidencias e
+instrucciones de reproducción): **[Informe_Practica01.pdf](Informe_Practica01.pdf)**.
 
 Detalle de cada paso:
 
@@ -97,7 +97,7 @@ Detalle de cada paso:
 | [docs/systemd.md](docs/systemd.md) | Ampliación: el supervisor como servicio systemd |
 | [docs/inventario.md](docs/inventario.md) | Observación de procesos con `ps` y `pstree`, mapa de procesos |
 | [docs/Incidencias.md](docs/Incidencias.md) | Registro de incidencias |
-| [docs/uso-ia.md](docs/uso-ia.md) | Declaración de autoría y de uso de IA |
+| [docs/uso-ia.md](docs/uso-ia.md) | Uso de IA |
 
 ## Estado
 
