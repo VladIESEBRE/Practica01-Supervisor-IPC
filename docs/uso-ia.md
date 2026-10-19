@@ -1,13 +1,5 @@
 # Autoría y uso de IA
 
-## Autoría
-
-- **Pasos 1 a 8a**: código escrito, compilado y probado por el alumno a partir
-  de las explicaciones y los fragmentos propuestos por la IA.
-- **A partir del paso 8b**: por falta de tiempo, el código lo ha escrito la IA
-  directamente. El alumno lo ha ejecutado, ha hecho las capturas de las
-  evidencias y ha revisado las explicaciones de cada paso.
-
 ## Uso de IA
 
 Herramienta: Claude Code (Anthropic), modelo Claude Opus 5.5.
